@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Family Dinner — Meal Planner</title>
+<meta name="description" content="Freezer-to-slow-cooker meal planner: browse meals, plan weeks, get grocery lists and cooking instructions." />
+<style>
+  html,body{margin:0;padding:0;background:#E7E0D0;}
+  #loading{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#33564B;
+    display:flex;align-items:center;justify-content:center;height:100vh;font-size:16px;}
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"><div id="loading">Warming up the slow cooker…</div></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+
+/* ------------------------------------------------------------------ *
+ *  Freezer-to-slow-cooker meal planner
+ *  Recipe data parsed from the user's own "My Family Dinner" plans.
+ * ------------------------------------------------------------------ */
+
+const DATA = [{"id":"r0","name":"Apple BBQ Pulled Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. CHICKEN THIGHS OR CHICKEN BREASTS"},{"q":1.0,"u":"cup","n":"Bbq Sauce","c":"Oils, Sauces & Condiments","raw":"1 CUP FAVORITE BBQ SAUCE"},{"q":1.0,"u":"","n":"Gala Apple","c":"Produce","raw":"1 GALA APPLE, DICED"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ TSP BLACK PEPPER"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low 4-6 hours.","Shred chicken breasts and stir back into sauce in slow cooker.","Serve in a bun and enjoy!"]},{"id":"r1","name":"BBQ Chickpea Sloppy Joes","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":2.0,"u":"","n":"Chickpeas","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS CHICKPEAS, DRAINED AND RINSED"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":1.0,"u":"","n":"Green Bell Pepper","c":"Spices & Seasoning","raw":"1 GREEN BELL PEPPER, DICED"},{"q":1.0,"u":"cup","n":"Carrots","c":"Produce","raw":"1 CUP SHREDDED CARROTS"},{"q":6.0,"u":"oz","n":"Tomato Paste","c":"Canned & Jarred","raw":"6 OZ TOMATO PASTE"},{"q":2.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"2 TBSP RAW HONEY"},{"q":2.0,"u":"tbsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"2 TBSP CHILI POWDER"},{"q":1.5,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 1/2 TSP GARLIC POWDER"},{"q":0.5,"u":"tsp","n":"Celery Seed","c":"Spices & Seasoning","raw":"1/2 TSP CELERY SEED"},{"q":0.25,"u":"tsp","n":"Cinnamon","c":"Spices & Seasoning","raw":"1/4 TSP CINNAMON"},{"q":1.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"1 TSP DRIED THYME"},{"q":1.0,"u":"tbsp","n":"Dijon Mustard","c":"Oils, Sauces & Condiments","raw":"1 TBSP DIJON MUSTARD"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"cup","n":"Bbq Sauce","c":"Oils, Sauces & Condiments","raw":"1 CUP BBQ SAUCE"}],"cuisine":"American","steps":["Thaw overnight in fridge or in the morning (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low 3-4 hours.","Stir and serve in a bun."]},{"id":"r2","name":"BBQ Ribs","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["pork"],"ing":[{"q":1.0,"u":"","n":"Rack Baby Back Ribs","c":"Meat & Protein","raw":"1 RACK BABY BACK RIBS"},{"q":1.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"1 TBSP OLIVE OIL"},{"q":1.0,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"1 CUP WATER"},{"q":1.0,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"1 TSP PAPRIKA"},{"q":1.0,"u":"tsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"1 TSP CHILI POWDER"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":0.5,"u":"tsp","n":"Dill","c":"Spices & Seasoning","raw":"½ TSP DILL"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ TSP BLACK PEPPER"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 1 cup water.","Cook on low for 8-10 hours.","Remove and spread BBQ sauce onto ribs. Serve and enjoy!"]},{"id":"r3","name":"Barbacoa Beef","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef","chicken"],"ing":[{"q":3.0,"u":"lb","n":"Beef Chuck Roast","c":"Meat & Protein","raw":"2-3 LBS BEEF CHUCK ROAST"},{"q":0.5,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1/2 CUP FROZEN DICED ONION"},{"q":0.5,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"1/2 CUP CHICKEN BROTH"},{"q":1.0,"u":"","n":"Green Chilies","c":"Canned & Jarred","raw":"1 (4.5 OZ) CAN DICED GREEN CHILIES"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":2.0,"u":"tbsp","n":"Apple Cider Vinegar","c":"Oils, Sauces & Condiments","raw":"2 TBSP APPLE CIDER VINEGAR"},{"q":2.0,"u":"tbsp","n":"Lime Juice Juice 1 Lime","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE, JUICE OF 1 LIME"},{"q":1.0,"u":"tbsp","n":"Oregano","c":"Spices & Seasoning","raw":"1 TBSP DRIED OREGANO"},{"q":2.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"2 TSP GROUND CUMIN"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":0.25,"u":"tsp","n":"Cloves","c":"Meat & Protein","raw":"1/4 TSP GROUND CLOVES"},{"q":2.0,"u":"tbsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"2 TBSP CHILI POWDER"},{"q":2.0,"u":"cup","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"2 CUPS SHREDDED CHEDDAR CHEESE"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 8-10 hours.","Shred beef and stir back into sauce in slow cooker.","Serve in tortillas! Enjoy!"]},{"id":"r4","name":"Basil Tomato Soup","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":2.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"2 (28 OZ) CANS DICED TOMATOES"},{"q":1.0,"u":"","n":"Tomato Sauce","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN TOMATO SAUCE"},{"q":1.0,"u":"","n":"Chicken Broth","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN CHICKEN BROTH"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"","n":"½ Tsp Salt","c":"Spices & Seasoning","raw":"1 ½ TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ TSP BLACK PEPPER"},{"q":1.0,"u":"tbsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TBSP ONION POWDER"},{"q":1.0,"u":"","n":"Red Bell Pepper","c":"Spices & Seasoning","raw":"1 RED BELL PEPPER, DICED"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":1.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"1 TBSP RAW HONEY"},{"q":1.0,"u":"bunch","n":"Basil","c":"Pasta, Grains & Bread","raw":"1 BUNCH FRESH BASIL, DICED"}],"cuisine":"Italian","steps":["No need to thaw, recipe can go straight from freezer to slow cooker.","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 4-6 hours.","Blend tomato soup until smooth, then stir in fresh basil.","Serve. Optional: garnish with fresh basil."]},{"id":"r5","name":"Bean Burritos","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":2.0,"u":"","n":"Black Beans","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS COOKED BLACK BEANS, DRAINED, AND RINSED"},{"q":1.0,"u":"","n":"Frozen Peppers Onions","c":"Produce","raw":"1 (12 OZ) BAG FROZEN PEPPERS AND ONIONS"},{"q":0.25,"u":"cup","n":"Cilantro","c":"Produce","raw":"1/4 CUP FRESH CILANTRO, DICED"},{"q":2.0,"u":"cup","n":"Mozzarella Cheese","c":"Dairy & Eggs","raw":"2 CUPS SHREDDED MOZZARELLA CHEESE"},{"q":2.0,"u":"tbsp","n":"Butter","c":"Dairy & Eggs","raw":"2 TBSP BUTTER"},{"q":1.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 1/2 TSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":1.5,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 1/2 TSP CUMIN"},{"q":2.0,"u":"tbsp","n":"Lime Juice Juice 1 Lime","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE, JUICE OF 1 LIME"},{"q":0.5,"u":"tbsp","n":"Lime Zest","c":"Produce","raw":"1/2 TBSP FRESH LIME ZEST"},{"q":8.0,"u":"","n":"Tortillas","c":"Pasta, Grains & Bread","raw":"8 MEDIUM TORTILLAS"}],"cuisine":"Mexican","steps":["If desired, thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 3-4 hours.","Stir and add 1/3 cup bean mixture into tortilla, add rice, and mozzarella cheese then wrap and toast for a few min on each side.","Serve and enjoy."]},{"id":"r6","name":"Beef Picadillo","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"ALUMINUM","proteins":["beef"],"ing":[{"q":2.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"2 LBS GROUND BEEF"},{"q":1.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"1 TBSP OLIVE OIL"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"","n":"Red Bell Pepper","c":"Spices & Seasoning","raw":"1 RED BELL PEPPER, DICED"},{"q":1.0,"u":"","n":"Pint Cherry Tomatoes Halved","c":"Produce","raw":"1 PINT CHERRY TOMATOES HALVED"},{"q":1.0,"u":"","n":"Fire Roasted Tomatoes","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN FIRE ROASTED TOMATOES"},{"q":2.0,"u":"","n":"Bunches Green Onions","c":"Pasta, Grains & Bread","raw":"2 BUNCHES GREEN ONIONS, DICED"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP GROUND CUMIN"},{"q":0.25,"u":"cup","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"¼ CUP RAW HONEY"},{"q":0.5,"u":"cup","n":"Green Olives","c":"Canned & Jarred","raw":"½ CUP GREEN OLIVES"},{"q":2.0,"u":"tbsp","n":"Bring From Olive Jar","c":"Canned & Jarred","raw":"2 TBSP BRING FROM OLIVE JAR"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"}],"cuisine":"Latin American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Crumble up beef and stir in diced green onions.","Serve over rice, in tortillas or over chips for some nachos."]},{"id":"r7","name":"Beef Tacos","serves":"4-6","cook":"5-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":2.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"2 LBS GROUND BEEF"},{"q":1.0,"u":"cup","n":"Tomato Salsa","c":"Canned & Jarred","raw":"1 CUP TOMATO SALSA"},{"q":2.0,"u":"tsp","n":"Sea Salt","c":"Spices & Seasoning","raw":"2 TSP SEA SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":2.0,"u":"tsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"2 TSP CHILI POWDER"},{"q":2.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"2 TSP GROUND CUMIN"},{"q":1.0,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"1 TSP PAPRIKA"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":1.0,"u":"tsp","n":"Oregano","c":"Spices & Seasoning","raw":"1 TSP OREGANO"},{"q":8.0,"u":"","n":"Tortillas","c":"Pasta, Grains & Bread","raw":"8 TORTILLAS"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 5-6 hours.","Break apart the meat and stir. Serve in tortillas and top with cheese."]},{"id":"r8","name":"Broccoli Cheddar Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":2.0,"u":"cup","n":"Carrots","c":"Produce","raw":"2 CUPS CARROTS, SHREDDED"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":1.0,"u":"tsp","n":"Dijon Mustard","c":"Oils, Sauces & Condiments","raw":"1 TSP DIJON MUSTARD"},{"q":1.0,"u":"head","n":"Broccoli Florets Roughly","c":"Produce","raw":"1 HEAD BROCCOLI FLORETS, ROUGHLY CHOPPED"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":0.25,"u":"cup","n":"Unsalted Butter","c":"Spices & Seasoning","raw":"1/4 CUP UNSALTED BUTTER"},{"q":0.25,"u":"cup","n":"All Purposed Unbleached Flour","c":"Pasta, Grains & Bread","raw":"1/4 CUP ALL PURPOSED UNBLEACHED FLOUR"},{"q":1.0,"u":"","n":"½ Cup Heavy Cream","c":"Dairy & Eggs","raw":"1 ½ CUP HEAVY CREAM"}],"cuisine":"American","steps":["No need to thaw, meal can go straight from freezer to slow cooker.","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 6-8 hours.","During the last 30 minutes of cook time add heavy cream and cheddar cheese.","Stir and serve."]},{"id":"r9","name":"Buffalo Chicken Salad","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LB BONELESS SKINLESS CHICKEN THIGHS"},{"q":0.5,"u":"cup","n":"Franks Hot Sauce","c":"Oils, Sauces & Condiments","raw":"1/2 CUP FRANKS HOT SAUCE"},{"q":1.0,"u":"tbsp","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1 TBSP SOY SAUCE"},{"q":1.0,"u":"tsp","n":"Apple Cider Vinegar","c":"Oils, Sauces & Condiments","raw":"1 TSP APPLE CIDER VINEGAR"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":0.75,"u":"tsp","n":"Dill","c":"Spices & Seasoning","raw":"3/4 TSP DILL"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Remove chicken, shred, then mix back into buffalo sauce in a slow cooker.","Serve over romaine lettuce and enjoy!"]},{"id":"r10","name":"Burgers","serves":"4-6","cook":"30 MINUTES","cookHours":30,"supplies":"STOVETOP","proteins":["beef"],"ing":[{"q":3.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"3 LBS. GROUND BEEF"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":3.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"3 TSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":2.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"2 TSP ONION POWDER"},{"q":2.0,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"2 TSP PAPRIKA"},{"q":2.0,"u":"tsp","n":"Oregano","c":"Spices & Seasoning","raw":"2 TSP OREGANO"},{"q":8.0,"u":"oz","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"8 OZ CHEDDAR CHEESE"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Cook burgers on stovetop to desired temperature.","Allow burgers time to rest and serve in buns with cheese."]},{"id":"r11","name":"Butter Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"ALUMINUM","proteins":["chicken"],"ing":[{"q":2.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"1-2 LB BONELESS SKINLESS CHICKEN THIGHS"},{"q":1.0,"u":"","n":"Frozen Sweet Potato","c":"Produce","raw":"1 (12 OZ) BAG FROZEN DICED SWEET POTATO"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":2.0,"u":"tsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TSP OLIVE OIL"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":0.25,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"¼ TSP GROUND GINGER"},{"q":1.0,"u":"tsp","n":"Coriander","c":"Spices & Seasoning","raw":"1 TSP CORIANDER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP CUMIN"},{"q":1.0,"u":"tsp","n":"Cardamom","c":"Spices & Seasoning","raw":"1 TSP CARDAMOM"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"½ TSP SALT"},{"q":1.0,"u":"","n":"Full Fat Coconut Milk","c":"Dairy & Eggs","raw":"1 (14.5 OZ) CAN FULL FAT COCONUT MILK"},{"q":1.0,"u":"","n":"Tomato Paste","c":"Canned & Jarred","raw":"1 (6 OZ) CAN TOMATO PASTE"},{"q":1.0,"u":"","n":"Lime","c":"Produce","raw":"1 LIME"}],"cuisine":"Indian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Stir and serve over rice with a wedge of lime on the side."]},{"id":"r12","name":"Butter Garlic Steak","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":1.5,"u":"lb","n":"Yellow Potatoes","c":"Produce","raw":"1.5 LBS. PETITE YELLOW POTATOES"},{"q":1.0,"u":"","n":"Frozen Green Beans","c":"Canned & Jarred","raw":"1 (12 OZ) BAG FROZEN GREEN BEANS"},{"q":8.0,"u":"oz","n":"Unsalted Butter","c":"Spices & Seasoning","raw":"8 OZ UNSALTED BUTTER"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TBSP SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 8-10 hours.","Serve! Optional: garnish with parmesan and fresh parsley."]},{"id":"r13","name":"Carne Asada","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":3.0,"u":"lb","n":"Flank Steak","c":"Meat & Protein","raw":"2-3 LBS FLANK STEAK"},{"q":0.25,"u":"cup","n":"Olive Oil","c":"Canned & Jarred","raw":"¼ CUP OLIVE OIL"},{"q":0.25,"u":"cup","n":"Orange Juice","c":"Pantry & Baking","raw":"1/4 CUP ORANGE JUICE"},{"q":2.0,"u":"tbsp","n":"Lime Juice","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"1 TSP CHILI POWDER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP CUMIN"},{"q":1.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"1 TBSP RAW HONEY"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge or in the morning in some warm water (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 8-10 hours.","Remove and shred meat, stir back into sauce. Serve over rice, and enjoy."]},{"id":"r14","name":"Chicken Alfredo Bake","serves":"4-6","cook":"50 MINUTES","cookHours":50,"supplies":"ALUMINUM","proteins":["chicken"],"ing":[{"q":16.0,"u":"oz","n":"Rigatoni Pasta","c":"Pasta, Grains & Bread","raw":"16 OUNCES RIGATONI PASTA"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TEASPOON SALT"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TEASPOON PEPPER"},{"q":1.0,"u":"cup","n":"Parmesan Cheese","c":"Dairy & Eggs","raw":"1 CUP SHREDDED PARMESAN CHEESE"},{"q":2.0,"u":"cup","n":"Mozzarella Cheese","c":"Dairy & Eggs","raw":"2 CUPS MOZZARELLA CHEESE"}],"cuisine":"Italian","steps":["Preheat oven to 400.","Cook frozen chicken alfredo dinner for 50 min – 60 min.","Allow to cool for 10-15 min, and serve."]},{"id":"r15","name":"Chicken Enchiladas","serves":"4-6","cook":"4-5 HOURS","cookHours":5,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":1.0,"u":"","n":"Green Chilies","c":"Canned & Jarred","raw":"1 (4.5 OZ) DICED GREEN CHILIES"},{"q":1.0,"u":"","n":"Enchilada Sauce","c":"Canned & Jarred","raw":"1 (10 OZ CAN) ENCHILADA SAUCE"},{"q":1.0,"u":"","n":"Chicken Broth","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN CHICKEN BROTH"},{"q":1.0,"u":"","n":"Black Beans","c":"Canned & Jarred","raw":"1 (14.5 OZ CAN) BLACK BEANS, RINSED AND DRAINED"},{"q":2.0,"u":"cup","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"2 CUPS SHREDDED CHEDDAR CHEESE"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-5 hours.","During last 30 minutes cook time, stir in 1 can of black beans.","Shred chicken and stir into sauce in slow cooker.","Serve over in tortillas and top with cheese!"]},{"id":"r16","name":"Chicken Fajitas","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Breast","c":"Meat & Protein","raw":"2-3 LBS. CHICKEN BREAST OR CHICKEN THIGHS"},{"q":1.0,"u":"","n":"Frozen Peppers Onions","c":"Produce","raw":"1 (12 OZ) BAG FROZEN PEPPERS AND ONIONS"},{"q":1.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATOES, DO NOT DRAIN"},{"q":1.0,"u":"","n":"Jalapeno","c":"Produce","raw":"1 JALAPENO DICED (SEEDS REMOVED)"},{"q":1.0,"u":"tsp","n":"Lime Zest","c":"Produce","raw":"1 TSP LIME ZEST"},{"q":2.0,"u":"tbsp","n":"Lime Juice Juice One Lime","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE, JUICE OF ONE LIME"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":2.0,"u":"tsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"2 TSP CHILI POWDER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP GROUND CUMIN"},{"q":1.0,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"1 TSP PAPRIKA"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":0.5,"u":"tsp","n":"Oregano","c":"Spices & Seasoning","raw":"1/2 TSP DRIED OREGANO"},{"q":8.0,"u":"","n":"Tortillas","c":"Pasta, Grains & Bread","raw":"8 TORTILLAS"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Remove chicken and slice or shred. Mix back into slow cooker and serve in tortillas! Top with your favorite taco toppings."]},{"id":"r17","name":"Chicken Gnocchi Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"1 LB BONELESS SKINLESS CHICKEN THIGHS"},{"q":1.0,"u":"","n":"Stalk Celery","c":"Produce","raw":"1 STALK CELERY, DICED"},{"q":0.5,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"½ CUP FROZEN DICED ONION"},{"q":0.5,"u":"cup","n":"Carrot","c":"Produce","raw":"½ CUP SHREDDED CARROT"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":1.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"1 TSP THYME"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":16.0,"u":"oz","n":"Potato Gnocchi","c":"Pasta, Grains & Bread","raw":"16 OZ POTATO GNOCCHI"},{"q":6.0,"u":"oz","n":"Frozen Spinach","c":"Produce","raw":"6 OZ FROZEN SPINACH"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add contents of freezer bag to slow cooker plus 4 cups chicken broth.","Cook on low for 6-8 hours. Add potato gnocchi during last one hour cook time.","After cooked, stir in frozen spinach and heavy cream and serve."]},{"id":"r18","name":"Chicken Lettuce Wraps","serves":"4-6","cook":"5-7 HOURS","cookHours":7,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":2.0,"u":"lb","n":"Chicken","c":"Meat & Protein","raw":"2 LBS GROUND CHICKEN"},{"q":2.0,"u":"cup","n":"Carrots","c":"Produce","raw":"2 CUPS CARROTS SHREDDED"},{"q":2.0,"u":"cup","n":"Mushrooms","c":"Produce","raw":"2 CUPS MUSHROOMS DICED"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":3.0,"u":"tsp","n":"Sesame Oil","c":"Oils, Sauces & Condiments","raw":"3 TSP SESAME OIL"},{"q":0.5,"u":"cup","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1/2 CUP SOY SAUCE"},{"q":1.0,"u":"tbsp","n":"Rice Vinegar","c":"Oils, Sauces & Condiments","raw":"1 TBSP RICE VINEGAR"},{"q":2.0,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"2 TSP GROUND GINGER"},{"q":1.0,"u":"tbsp","n":"Peanut Butter","c":"Dairy & Eggs","raw":"1 TBSP PEANUT BUTTER"},{"q":1.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"1 TBSP RAW HONEY"},{"q":0.25,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/4 TSP BLACK PEPPER"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"}],"cuisine":"Asian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 5-7 hours.","Break up meat, stir, and serve in boston lettuce! Optional: serve with soy sauce."]},{"id":"r19","name":"Chicken Noodle Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN ONION DICED"},{"q":1.0,"u":"cup","n":"Carrots","c":"Produce","raw":"1 CUP SHREDDED CARROTS, CHOPPED"},{"q":12.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"12 CUP CHICKEN BROTH"},{"q":1.0,"u":"","n":"Bay Leaf","c":"Spices & Seasoning","raw":"1 BAY LEAF"},{"q":1.5,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 1/2 TSP GARLIC POWDER"},{"q":1.5,"u":"tsp","n":"Parsley","c":"Spices & Seasoning","raw":"1 1/2 TSP DRIED PARSLEY"},{"q":8.0,"u":"oz","n":"Pasta Noodles Choice","c":"Pasta, Grains & Bread","raw":"8 OZ PASTA NOODLES OF CHOICE"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge or in the morning in some warm water (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 12 cups chicken broth.","Cook on low 6-8 hours.","During the last 1 hour cook time add pasta noodles.","Remove chicken, shred or chop, and stir back into soup. Serve and enjoy!"]},{"id":"r20","name":"Chicken Pot Pie Soup","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"lb","n":"Bonesless Chicken Thighs","c":"Meat & Protein","raw":"1 LBS BONESLESS SKINLESS CHICKEN THIGHS"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":2.0,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"2 CUPS WATER"},{"q":1.0,"u":"cup","n":"Heavy Cream","c":"Dairy & Eggs","raw":"1 CUP HEAVY CREAM"},{"q":3.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"3 TBSP OLIVE OIL"},{"q":2.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"2 CUPS FROZEN DICED ONION"},{"q":2.0,"u":"cup","n":"Carrot","c":"Produce","raw":"2 CUPS SHREDDED CARROT"},{"q":3.0,"u":"","n":"Stalks Celery","c":"Produce","raw":"3 STALKS CELERY, DICED"},{"q":1.5,"u":"lb","n":"Yellow Potatoes","c":"Produce","raw":"1.5 LBS YELLOW PETITE POTATOES"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker, plus 4 cups broth and 2 cups water.","Cook on low for 8-10 hours.","Stir in 1 cup heavy cream, serve and enjoy!"]},{"id":"r21","name":"Chickpea Potato Green Curry","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":2.0,"u":"","n":"Chickpeas","c":"Canned & Jarred","raw":"2 (14.5OZ) CAN CHICKPEAS, RINSED AND DRAINED"},{"q":1.5,"u":"lb","n":"Purple Potatoes","c":"Produce","raw":"1.5 LBS. PETITE PURPLE POTATOES, RINSED (NO NEED TO PEEL AND DICE)"},{"q":1.0,"u":"cup","n":"Carrot","c":"Produce","raw":"1 CUP SHREDDED CARROT"},{"q":1.0,"u":"","n":"Red Bell Pepper","c":"Spices & Seasoning","raw":"1 RED BELL PEPPER, DICED"},{"q":3.0,"u":"tbsp","n":"Basil","c":"Produce","raw":"3 TBSP FRESH BASIL"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TBSP ONION POWDER"},{"q":1.0,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"1 TSP GROUND GINGER"},{"q":2.0,"u":"tbsp","n":"Green Curry Paste","c":"Oils, Sauces & Condiments","raw":"2 TBSP GREEN CURRY PASTE"},{"q":1.0,"u":"can","n":"Coconut Milk","c":"Dairy & Eggs","raw":"1 CAN COCONUT MILK"},{"q":1.0,"u":"tbsp","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1 TBSP SOY SAUCE"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"}],"cuisine":"Asian","steps":["Thaw overnight in fridge or in the morning (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low 6-8 hours.","Serve on rice. Optional: garnish with fresh parsley."]},{"id":"r22","name":"Chili","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef","pork"],"ing":[{"q":2.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"2 LBS. GROUND BEEF"},{"q":1.0,"u":"lb","n":"Bacon","c":"Meat & Protein","raw":"1 LB. BACON, COOKED AND DICED"},{"q":1.0,"u":"cup","n":"Onion Frozen","c":"Produce","raw":"1 CUP DICED ONION, FROZEN"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":2.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS DICED TOMATOES"},{"q":1.0,"u":"","n":"Tomato Paste","c":"Canned & Jarred","raw":"1 (6 OZ) CAN TOMATO PASTE"},{"q":1.0,"u":"","n":"Black Beans","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN BLACK BEANS, DRAINED AND RINSED"},{"q":1.0,"u":"pinch","n":"Cinnamon","c":"Spices & Seasoning","raw":"1 PINCH CINNAMON"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"tbsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"1 TBSP CHILI POWDER"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump bag into slow cooker and cook on low for 8-10 hours.","Stir, crumbling beef, and serve. Enjoy!"]},{"id":"r23","name":"Chimichurri Steak and Potatoes","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":2.0,"u":"","n":"Yellow Potatoes","c":"Produce","raw":"2 (1.5 LB) LBS PETITE YELLOW POTATOES"},{"q":2.0,"u":"lb","n":"Flank Steak","c":"Meat & Protein","raw":"2 LBS FLANK STEAK"},{"q":1.0,"u":"tsp","n":"Sea Salt","c":"Spices & Seasoning","raw":"1 TSP SEA SALT"},{"q":0.5,"u":"","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ BLACK PEPPER"},{"q":2.0,"u":"tbsp","n":"Chimichurri Sauce","c":"Oils, Sauces & Condiments","raw":"2 TBSP CHIMICHURRI SAUCE"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"}],"cuisine":"Latin American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 8-10 hours.","Serve with more chimichurri sauce and enjoy! Optional: mash up potatoes."]},{"id":"r24","name":"Enchilada Bowl","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"","n":"Chicken Broth","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN CHICKEN BROTH"},{"q":1.0,"u":"cup","n":"Quinoa","c":"Pasta, Grains & Bread","raw":"1 CUP, UNCOOKED QUINOA"},{"q":1.0,"u":"","n":"Enchilada Sauce","c":"Canned & Jarred","raw":"1 (10 OZ) ENCHILADA SAUCE"},{"q":1.0,"u":"","n":"Green Chilies","c":"Canned & Jarred","raw":"1 (4.5 OZ) CAN, CHOPPED GREEN CHILIES"},{"q":1.0,"u":"","n":"Black Beans","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN BLACK BEANS, DRAINED AND RINSED"},{"q":0.5,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1/2 TSP CUMIN"},{"q":0.5,"u":"tsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"1/2 TSP CHILI POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":2.0,"u":"cup","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"2 CUPS CHEDDAR CHEESE, SHREDDED"}],"cuisine":"Mexican","steps":["Can cook from frozen or thaw overnight in fridge.","Add freezer bag contents into slow cooker.","Cook on low for 3-4 hours.","Serve with some cheese top with your favorite taco toppings!"]},{"id":"r25","name":"French Dip with Au Jus","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef","chicken"],"ing":[{"q":3.0,"u":"lb","n":"Beef Chuck Roast","c":"Meat & Protein","raw":"3 LBS. BEEF CHUCK ROAST"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Parsley","c":"Spices & Seasoning","raw":"1 TBSP DRIED PARSLEY"},{"q":1.0,"u":"tsp","n":"Rosemary","c":"Spices & Seasoning","raw":"1 TSP DRIED ROSEMARY"},{"q":2.0,"u":"tsp","n":"Dill","c":"Spices & Seasoning","raw":"2 TSP DRIED DILL"},{"q":1.0,"u":"tbsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TBSP ONION POWDER"},{"q":1.0,"u":"tbsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TBSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":2.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"2 CUPS CHICKEN BROTH"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low 8-10 hours.","Remove beef, shred and serve on bread with au jus sauce from slow cooker on the side for dipping."]},{"id":"r26","name":"General Tso Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":0.25,"u":"cup","n":"Corn Starch","c":"Pantry & Baking","raw":"1/4 CUP CORN STARCH"},{"q":1.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"1 TBSP OLIVE OIL"},{"q":4.0,"u":"tbsp","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"4 TBSP SOY SAUCE"},{"q":0.5,"u":"cup","n":"Brown Sugar","c":"Pantry & Baking","raw":"1/2 CUP BROWN SUGAR"},{"q":0.5,"u":"tbsp","n":"Honey","c":"Oils, Sauces & Condiments","raw":"1/2 TBSP HONEY"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Peanut Butter","c":"Dairy & Eggs","raw":"1 TBSP PEANUT BUTTER"},{"q":3.0,"u":"tbsp","n":"Rice Wine Vinegar","c":"Oils, Sauces & Condiments","raw":"3 TBSP RICE WINE VINEGAR"},{"q":2.0,"u":"tsp","n":"Sriracha","c":"Oils, Sauces & Condiments","raw":"2 TSP SRIRACHA"},{"q":2.0,"u":"tsp","n":"Sesame Oil","c":"Oils, Sauces & Condiments","raw":"2 TSP SESAME OIL"},{"q":0.25,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"1/4 TSP GROUND GINGER"},{"q":0.5,"u":"tsp","n":"Red Pepper","c":"Spices & Seasoning","raw":"1/2 TSP CRUSHED RED PEPPER"}],"cuisine":"Asian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 4-6 hours.","Remove chicken thighs from slow cooker, shred chicken, mix back into sauce in slow cooker.","Serve over rice. Optional: garnish with green onions and sesame seeds."]},{"id":"r27","name":"Ground Turkey White Chili","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken","turkey"],"ing":[{"q":2.0,"u":"lb","n":"Turkey","c":"Meat & Protein","raw":"2 LBS. GROUND TURKEY"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":1.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 1/2 TSP SALT"},{"q":0.75,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"3/4 TSP BLACK PEPPER"},{"q":1.0,"u":"","n":"Tomatoes W/Green Chilies","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATOES W/GREEN CHILIES"},{"q":1.0,"u":"tbsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TBSP GROUND CUMIN"},{"q":1.0,"u":"tbsp","n":"Oregano","c":"Spices & Seasoning","raw":"1 TBSP DRIED OREGANO"},{"q":0.5,"u":"tsp","n":"Cinnamon","c":"Spices & Seasoning","raw":"1/2 TSP GROUND CINNAMON"},{"q":2.0,"u":"","n":"Cannellini Beans","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS CANNELLINI BEANS"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of the freezer bag into the slow cooker, add water and broth into the slow cooker (do not break apart or mix the raw meat, let it cook, then break apart after it cooks).","Cook on low 6-8 hours.","Break apart your meat, stir, and serve hot!"]},{"id":"r28","name":"Ham and Potato Soup","serves":"4-6","cook":"7-9 HOURS","cookHours":9,"supplies":"CROCKPOT","proteins":["beef","chicken","pork"],"ing":[{"q":1.0,"u":"","n":"Yellow Onion","c":"Produce","raw":"1 YELLOW ONION, DICED OR"},{"q":1.5,"u":"cup","n":"Carrots","c":"Produce","raw":"1 1/2 CUPS CARROTS, SHREDDED"},{"q":3.0,"u":"","n":"Celery Ribs","c":"Meat & Protein","raw":"3 CELERY RIBS, DICED"},{"q":1.5,"u":"lb","n":"Yellow Potatoes","c":"Produce","raw":"1.5 LBS. BAG PETITE YELLOW POTATOES, RINSED (NO NEED TO PEEL OR DICE)"},{"q":16.0,"u":"oz","n":"Ham Steak","c":"Meat & Protein","raw":"16 OZ HAM STEAK, CUBED"},{"q":1.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"1 TSP DRIED THYME"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TSP PEPPER"},{"q":2.0,"u":"","n":"Bay Leaves","c":"Spices & Seasoning","raw":"2 BAY LEAVES"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"","n":"Chicken Broth","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN CHICKEN BROTH"}],"cuisine":"American","steps":["Do not thaw, cook from frozen.","Dump contents of freezer bag into slow cooker then add water and broth into slow cooker.","Cook on low 7-9 hours.","Remove bay leaves, and blend half of the mixture in a high-speed blender or with immersion blender. Stir back into slow cooker and enjoy!"]},{"id":"r29","name":"Hidden Veggie Bake","serves":"4-6","cook":"75 MINUTES","cookHours":75,"supplies":"ALUMINUM","proteins":["vegetarian"],"ing":[{"q":2.0,"u":"cup","n":"Mozzarella","c":"Dairy & Eggs","raw":"2 CUPS MOZZARELLA, SHREDDED"},{"q":1.0,"u":"lb","n":"Penne Pasta","c":"Pasta, Grains & Bread","raw":"1 LB. PENNE PASTA"},{"q":0.3333333333333333,"u":"cup","n":"Parmesan","c":"Dairy & Eggs","raw":"1/3 CUP PARMESAN, SHREDDED"},{"q":2.0,"u":"","n":"Marinara Sauce","c":"Oils, Sauces & Condiments","raw":"2 (24 OZ) JAR MARINARA SAUCE"},{"q":1.0,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"1 CUP WATER"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Onion","c":"Produce","raw":"1 TBSP DRIED MINCED ONION"},{"q":2.0,"u":"tsp","n":"Basil","c":"Produce","raw":"2 TSP DRIED BASIL"},{"q":1.0,"u":"","n":"Red Bell Pepper Rough","c":"Spices & Seasoning","raw":"1 RED BELL PEPPER, ROUGH CHOPPED"},{"q":1.0,"u":"cup","n":"Carrots","c":"Produce","raw":"1 CUP SHREDDED CARROTS"},{"q":1.0,"u":"","n":"Zucchini Rough","c":"Produce","raw":"1 ZUCCHINI, ROUGH CHOPPED"}],"cuisine":"Italian","steps":["Preheat oven to 400.","Cook from frozen for 75 min – 85 min.","Allow to cool for 15 min, and serve."]},{"id":"r30","name":"Homestyle Beef Stew","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":3.0,"u":"lb","n":"Beef Chuck Roast","c":"Meat & Protein","raw":"2-3 LBS. BEEF CHUCK ROAST"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"","n":"Yellow Onion","c":"Produce","raw":"1 MEDIUM YELLOW ONION DICED OR (1 CUP FROZEN DICED ONION)"},{"q":1.0,"u":"","n":"Tomato Paste","c":"Canned & Jarred","raw":"1 (6 OZ) TOMATO PASTE"},{"q":1.0,"u":"","n":"Baby Carrots","c":"Produce","raw":"1 (16 OZ) BAG BABY CARROTS, WHOLE"},{"q":1.0,"u":"","n":"Parsnip","c":"Produce","raw":"1 LARGE PARSNIP, PEELED AND CHOPPED"},{"q":2.0,"u":"cup","n":"Celery","c":"Produce","raw":"2 CUPS CELERY, DICED"},{"q":2.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"2 TSP DRIED THYME"},{"q":2.0,"u":"","n":"Bay Leaves","c":"Spices & Seasoning","raw":"2 BAY LEAVES"},{"q":2.0,"u":"tsp","n":"Parsley","c":"Spices & Seasoning","raw":"2 TSP DRIED PARSLEY"},{"q":2.0,"u":"tbsp","n":"Apple Cider Vinegar","c":"Oils, Sauces & Condiments","raw":"2 TBSP APPLE CIDER VINEGAR"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 8-10 hours.","Shred beef, stir, and serve."]},{"id":"r31","name":"Italian Wedding Soup","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["chicken","pork"],"ing":[{"q":1.0,"u":"lb","n":"Italian Sausage","c":"Spices & Seasoning","raw":"1 LB. GROUND ITALIAN SAUSAGE"},{"q":6.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"6 CUP CHICKEN BROTH"},{"q":0.75,"u":"cup","n":"Carrots","c":"Produce","raw":"3/4 CUP SHREDDED CARROTS, DICED"},{"q":0.75,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"3/4 CUP FROZEN DICED ONION"},{"q":0.75,"u":"cup","n":"Celery","c":"Produce","raw":"3/4 CUP CELERY, DICED"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"","n":"Bay Leaf","c":"Spices & Seasoning","raw":"1 BAY LEAF"},{"q":0.25,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/4 TSP PEPPER"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":0.25,"u":"cup","n":"Acini Di Pepe","c":"Pasta, Grains & Bread","raw":"1/4 CUP ACINI DI PEPE"},{"q":10.0,"u":"oz","n":"Frozen","c":"Produce","raw":"6-10 OZ FROZEN OR FRESH SPINACH"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Add 6 cups broth to slow cooker.","Cook on low for 8-10 hours.","During the last hour of cooking time, add pasta and spinach.","Serve and enjoy!"]},{"id":"r32","name":"Jerk Chicken","serves":"4-6","cook":"5-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LB. BONELESS SKINLESS CHICKEN THIGHS"},{"q":2.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"2 TBSP RAW HONEY"},{"q":0.5,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"1/2 CUP WATER"},{"q":2.0,"u":"tbsp","n":"Lime Juice Juice One Lime","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE, JUICE OF ONE LIME"},{"q":3.0,"u":"tbsp","n":"Tomato Paste","c":"Canned & Jarred","raw":"3 TBSP TOMATO PASTE"},{"q":1.0,"u":"tbsp","n":"Vinegar","c":"Oils, Sauces & Condiments","raw":"1 TBSP VINEGAR"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"1 TSP DRIED THYME"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.25,"u":"tsp","n":"Cinnamon","c":"Spices & Seasoning","raw":"1/4 TSP CINNAMON"},{"q":0.25,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"¼ TSP PAPRIKA"},{"q":0.25,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"¼ TSP GROUND GINGER"},{"q":0.25,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"¼ TSP CUMIN"}],"cuisine":"Caribbean","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 5-6 hours.","Serve over rice and enjoy!"]},{"id":"r33","name":"Lazy Lasagna","serves":"4-6","cook":"40 MIN","cookHours":40,"supplies":"ALUMINUM","proteins":["beef"],"ing":[{"q":1.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"1 LB. GROUND BEEF"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TSP PEPPER"},{"q":2.0,"u":"tsp","n":"Oregano","c":"Spices & Seasoning","raw":"2 TSP OREGANO"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":1.0,"u":"","n":"Cheese Ravioli","c":"Dairy & Eggs","raw":"1 (20 OZ) CHEESE RAVIOLI"}],"cuisine":"Italian","steps":["Can cook from frozen or thaw overnight in fridge.","If frozen: preheat oven to 400, cook for 65-75 minutes. If thawed: preheat oven to 400, cook for 40-50 minutes.","After cooking, let rest 15 minutes and serve.","Label tray lid with recipe name, cooking from frozen directions and expiration date (today’s date plus three months).","Brown meat, be sure to season with salt and pepper to taste. Allow it to cool.","Add all ingredients (except 2 cups mozzarella) into an aluminum tray and mix."]},{"id":"r34","name":"Lemon Chicken Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"","n":"½ Lbs Chicken Thighs","c":"Meat & Protein","raw":"1 ½ LBS BONELESS SKINLESS CHICKEN THIGHS"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":1.0,"u":"cup","n":"Celery","c":"Produce","raw":"1 CUP CELERY DICED"},{"q":1.5,"u":"lb","n":"Potatoes","c":"Produce","raw":"1.5 LBS PETITE POTATOES"},{"q":1.0,"u":"","n":"Cauliflower","c":"Produce","raw":"1 SMALL HEAD CAULIFLOWER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Turmeric","c":"Spices & Seasoning","raw":"½ TSP TURMERIC"},{"q":2.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"2 CUPS CHICKEN BROTH"},{"q":2.0,"u":"tbsp","n":"Lemon Juice","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LEMON JUICE"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 4 cups broth.","Cook on low for 6-8 hours.","Remove chicken, shred, then stir back in.","Add lemon juice and coconut milk. Stir to combine and serve."]},{"id":"r35","name":"Lentil Curry Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":2.0,"u":"","n":"Chickpeas","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS CHICKPEAS"},{"q":1.0,"u":"cup","n":"Green Lentils","c":"Pasta, Grains & Bread","raw":"1 CUP GREEN LENTILS"},{"q":2.0,"u":"cup","n":"Carrots","c":"Produce","raw":"2 CUPS CARROTS SHREDDED"},{"q":1.0,"u":"","n":"Red Bell Pepper","c":"Spices & Seasoning","raw":"1 RED BELL PEPPER DICED"},{"q":2.0,"u":"cup","n":"Spinach","c":"Produce","raw":"2 CUPS SPINACH"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":1.0,"u":"","n":"Full Fat Coconut Milk","c":"Dairy & Eggs","raw":"1 (14.5 OZ) CAN FULL FAT COCONUT MILK"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN ONION DICED"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.5,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"1 1/2 TSP GROUND GINGER"},{"q":0.5,"u":"tsp","n":"Celery Seed","c":"Spices & Seasoning","raw":"1/2 TSP CELERY SEED"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP GROUND CUMIN"}],"cuisine":"Indian","steps":["No need to thaw.","Add freezer bag contents into slow cooker, add 14.5 Oz can coconut milk and 4 cups broth.","Cook on low for 6-8 hours.","Stir in spinach and serve."]},{"id":"r36","name":"Mac and Cheese","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":12.0,"u":"oz","n":"Evaporate Milk","c":"Dairy & Eggs","raw":"12 OZ CAN EVAPORATE MILK"},{"q":2.0,"u":"tbsp","n":"All-Purpose Flour","c":"Pasta, Grains & Bread","raw":"2 TBSP ALL-PURPOSE FLOUR"},{"q":1.0,"u":"tsp","n":"Sea Salt","c":"Spices & Seasoning","raw":"1 TSP SEA SALT"},{"q":0.25,"u":"tsp","n":"Mustard Powder","c":"Spices & Seasoning","raw":"1/4 TSP GROUND MUSTARD POWDER"},{"q":0.5,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"1/2 TSP PAPRIKA"},{"q":1.0,"u":"","n":"Egg","c":"Dairy & Eggs","raw":"1 EGG"},{"q":3.0,"u":"cup","n":"Unsweetened Almond Milk","c":"Dairy & Eggs","raw":"3 CUPS UNSWEETENED ALMOND MILK"},{"q":0.25,"u":"cup","n":"Unsalted Butter","c":"Spices & Seasoning","raw":"1/4 CUP UNSALTED BUTTER"},{"q":16.0,"u":"oz","n":"Elbow Macaroni Noodles","c":"Pasta, Grains & Bread","raw":"16 OZ DRIED ELBOW MACARONI NOODLES"},{"q":6.0,"u":"cup","n":"Sharp Cheddar Cheese","c":"Dairy & Eggs","raw":"6 CUPS SHARP CHEDDAR CHEESE"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add gallon freezer bag contents into slow cooker and cook on low for 3-4 hours. During the last one hour add shredded cheese and macaroni noodles.","Stir mac and cheese all together and serve!"]},{"id":"r37","name":"Mexican Shredded Beef","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":3.0,"u":"lb","n":"Beef Chuck Roast","c":"Meat & Protein","raw":"3 LBS. BEEF CHUCK ROAST"},{"q":0.5,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"½ CUP FROZEN DICED ONION"},{"q":1.0,"u":"cup","n":"Salsa Heat Preference","c":"Canned & Jarred","raw":"1 CUP SALSA HEAT OF PREFERENCE"},{"q":1.0,"u":"","n":"Green Chilies","c":"Canned & Jarred","raw":"1 (4.5 OZ) CAN DICED GREEN CHILIES"},{"q":1.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATOES"},{"q":1.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 1/2 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP GROUND CUMIN"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TSP ONION POWDER"},{"q":1.0,"u":"tsp","n":"Smoked Paprika","c":"Spices & Seasoning","raw":"1 TSP SMOKED PAPRIKA"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge or in the morning in some warm water (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low 8-10 hours.","Shred beef and stir back into sauce in slow cooker, then serve!"]},{"id":"r38","name":"Million Dollar Pasta","serves":"4-6","cook":"5-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":1.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"1 LB GROUND BEEF"},{"q":16.0,"u":"oz","n":"Bowtie Pasta","c":"Pasta, Grains & Bread","raw":"16 OZ BOWTIE PASTA"},{"q":1.0,"u":"","n":"Marinara Sauce","c":"Oils, Sauces & Condiments","raw":"1 (16 OZ) JAR MARINARA SAUCE"},{"q":1.0,"u":"","n":"Alfredo Sauce","c":"Oils, Sauces & Condiments","raw":"1 (16 OZ) JAR ALFREDO SAUCE"},{"q":0.5,"u":"cup","n":"Pesto Sauce","c":"Oils, Sauces & Condiments","raw":"½ CUP PESTO SAUCE"},{"q":3.0,"u":"cup","n":"Mozzarella Cheese","c":"Dairy & Eggs","raw":"3 CUPS MOZZARELLA CHEESE, SHREDDED"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 1 cup water.","Cook on low 5-6 hours, during the last one hour cook time, break up ground beef, then add pasta + 1 cup water and finish cooking.","Serve and enjoy."]},{"id":"r39","name":"Mississippi Pot Roast","serves":"4-6","cook":"8-10 HOURS","cookHours":10,"supplies":"CROCKPOT","proteins":["beef","chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chuck Roast","c":"Meat & Protein","raw":"2-3 LBS. CHUCK ROAST"},{"q":0.5,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"½ CUP CHICKEN BROTH"},{"q":1.0,"u":"tbsp","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1 TBSP SOY SAUCE"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":1.0,"u":"tbsp","n":"Parsley","c":"Spices & Seasoning","raw":"1 TBSP DRIED PARSLEY"},{"q":1.0,"u":"tsp","n":"Dill","c":"Spices & Seasoning","raw":"1 TSP DRIED DILL"},{"q":1.0,"u":"tbsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TBSP ONION POWDER, DRIED"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ TSP BLACK PEPPER"},{"q":1.5,"u":"tsp","n":"Sea Salt","c":"Spices & Seasoning","raw":"1 1/2 TSP SEA SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of freezer bag into slow cooker.","Cook on low 8-10 hours.","Shred beef, stir back into the sauce.","Stir and serve! Optional: garnish with fresh basil."]},{"id":"r40","name":"Orange Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. CHICKEN THIGHS"},{"q":2.0,"u":"cup","n":"Bbq Sauce","c":"Oils, Sauces & Condiments","raw":"2 CUPS BBQ SAUCE"},{"q":1.3333333333333333,"u":"cup","n":"Orange Marmalade","c":"Pantry & Baking","raw":"1 1/3 CUP ORANGE MARMALADE"},{"q":0.25,"u":"cup","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1/4 CUP SOY SAUCE"},{"q":2.0,"u":"tbsp","n":"Apple Cider Vinegar","c":"Oils, Sauces & Condiments","raw":"2 TBSP APPLE CIDER VINEGAR"}],"cuisine":"Asian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Shred chicken, then stir and serve over rice."]},{"id":"r41","name":"Philly Cheesesteak","serves":"4-6","cook":"2-3 HOURS","cookHours":3,"supplies":"CROCKPOT","proteins":["beef","chicken"],"ing":[{"q":2.0,"u":"lb","n":"Shaved Beef","c":"Meat & Protein","raw":"2 LBS. SHAVED BEEF"},{"q":1.0,"u":"","n":"Onion Cut Into 1-Inch Slices","c":"Produce","raw":"1 ONION, CUT INTO 1-INCH SLICES"},{"q":1.0,"u":"","n":"Green Pepper Cut Into 1- Inch Slices","c":"Spices & Seasoning","raw":"1 GREEN PEPPER, CUT INTO 1- INCH SLICES"},{"q":1.0,"u":"","n":"Red Pepper Cut Into 1-Inch Slices","c":"Spices & Seasoning","raw":"1 RED PEPPER, CUT INTO 1-INCH SLICES"},{"q":1.0,"u":"","n":"Chicken Broth","c":"Meat & Protein","raw":"1 (14.5 OZ) CAN CHICKEN BROTH OR BEEF BROTH"},{"q":1.0,"u":"tbsp","n":"Worcestershire Sauce","c":"Oils, Sauces & Condiments","raw":"1 TBSP WORCESTERSHIRE SAUCE"},{"q":1.0,"u":"tbsp","n":"Garlic","c":"Produce","raw":"1 TBSP GARLIC"},{"q":1.0,"u":"tbsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TBSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"},{"q":1.0,"u":"tbsp","n":"Italian Seasoning","c":"Spices & Seasoning","raw":"1 TBSP ITALIAN SEASONING"},{"q":6.0,"u":"","n":"Hoagie Rolls Ciabatta","c":"Pasta, Grains & Bread","raw":"4-6 HOAGIE ROLLS, CIABATTA, OR FRENCH BREAD"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 2-3 hours.","Separate beef, mix, remove beef and peppers with a slotted spoon.","Using a baking sheet topped with parchment paper. Spread open rolls onto baking sheet, top with meat and veggies, top with cheese, and broil on high for 1-2 minutes, then serve."]},{"id":"r42","name":"Pizza Pasta Casserole","serves":"4-6","cook":"2-3 HOURS","cookHours":3,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":1.0,"u":"","n":"Pepperoni","c":"Meat & Protein","raw":"1 (6 OZ) BAG PEPPERONI (I USED HALF)"},{"q":3.0,"u":"cup","n":"Mozzarella Cheese","c":"Dairy & Eggs","raw":"3 CUPS MOZZARELLA CHEESE"},{"q":1.0,"u":"lb","n":"Penne","c":"Pasta, Grains & Bread","raw":"1 LB PENNE"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 2 cups of water.","Cook on low 2-3 hours, add pasta during last 1 hour cook time.","Stir, serve, and enjoy."]},{"id":"r43","name":"Ranch Chicken Tacos","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":3.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"3 TBSP OLIVE OIL"},{"q":1.0,"u":"tbsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"1 TBSP CHILI POWDER"},{"q":1.0,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1 TSP PEPPER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1/2 TSP CUMIN"},{"q":0.5,"u":"tsp","n":"Red Pepper Flakes","c":"Spices & Seasoning","raw":"1/2 TSP RED PEPPER FLAKES"},{"q":0.5,"u":"tsp","n":"Paprika","c":"Spices & Seasoning","raw":"1/2 TSP PAPRIKA"},{"q":0.5,"u":"tsp","n":"Oregano","c":"Spices & Seasoning","raw":"1/2 TSP OREGANO"},{"q":1.5,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 1/2 TSP GARLIC POWDER"},{"q":2.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"2 TSP ONION POWDER"},{"q":1.0,"u":"tbsp","n":"Parsley","c":"Spices & Seasoning","raw":"1 TBSP DRIED PARSLEY"},{"q":0.75,"u":"tsp","n":"Dill","c":"Spices & Seasoning","raw":"3/4 TSP DILL"},{"q":2.0,"u":"cup","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"2 CUPS CHEDDAR CHEESE"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 4-6 hours.","Shred chicken and stir back into slow cooker.","Serve in tortillas and top with cheese. Optional: top with favorite taco toppings!"]},{"id":"r44","name":"Red Lentil Dal","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"","n":"½ Cups Red Lentils","c":"Pasta, Grains & Bread","raw":"1 ½ CUPS RED LENTILS"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":2.0,"u":"tsp","n":"Ginger","c":"Spices & Seasoning","raw":"2 TSP GROUND GINGER"},{"q":2.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"2 TSP GROUND CUMIN"},{"q":4.0,"u":"tbsp","n":"Curry Paste","c":"Oils, Sauces & Condiments","raw":"4 TBSP CURRY PASTE"},{"q":1.0,"u":"can","n":"Full Fat Coconut Milk","c":"Dairy & Eggs","raw":"1 CAN FULL FAT COCONUT MILK"},{"q":1.0,"u":"can","n":"Tomatoes","c":"Canned & Jarred","raw":"1 CAN DICED TOMATOES"},{"q":2.0,"u":"cup","n":"Butternut Squash Frozen","c":"Dairy & Eggs","raw":"1-2 CUPS BUTTERNUT SQUASH FROZEN DICED"},{"q":1.0,"u":"can","n":"Chicken Broth","c":"Meat & Protein","raw":"1 CAN CHICKEN BROTH"}],"cuisine":"Indian","steps":["Thaw overnight in fridge or in the morning in some warm water (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 6-8 hours.","Serve over rice and enjoy!"]},{"id":"r45","name":"Salsa Verde Chicken Nachos","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":16.0,"u":"oz","n":"Tomatillo Salsa Verde Heat Choice Preference","c":"Canned & Jarred","raw":"16 OZ TOMATILLO SALSA VERDE, HEAT CHOICE OF PREFERENCE"},{"q":2.0,"u":"tbsp","n":"Lime Juice","c":"Oils, Sauces & Condiments","raw":"2 TBSP FRESH LIME JUICE (JUICE OF ONE LIME)"},{"q":1.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TSP GARLIC POWDER"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"},{"q":1.0,"u":"","n":"Tortilla Chips","c":"Pasta, Grains & Bread","raw":"1 LARGE BAG TORTILLA CHIPS"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 4-6 hours.","Shred chicken breasts and stir into sauce in slow cooker.","Serve over chips and top with cheese. Melt cheese in microwave and enjoy! Optional: garnish with your favorite taco toppings!"]},{"id":"r46","name":"Sausage Tortellini","serves":"4-6","cook":"3-4 HRS","cookHours":4,"supplies":"CROCKPOT","proteins":["pork"],"ing":[{"q":20.0,"u":"oz","n":"Tortellini","c":"Pasta, Grains & Bread","raw":"20 OZ TORTELLINI"},{"q":1.0,"u":"lb","n":"Italian Mild Sausage","c":"Spices & Seasoning","raw":"1 LB. ITALIAN MILD SAUSAGE"},{"q":16.0,"u":"oz","n":"Alfredo Sauce","c":"Oils, Sauces & Condiments","raw":"16 OZ ALFREDO SAUCE"},{"q":1.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATOES"},{"q":1.0,"u":"","n":"Frozen Peppers Onions","c":"Produce","raw":"1 (12 OZ) FROZEN DICED PEPPERS AND ONIONS"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 3-4 hours, during last 1 hour cook time stir in water and tortellini.","Remove sausage and cut, then stir back in and serve."]},{"id":"r47","name":"Sloppy Joes","serves":"4-6","cook":"5-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["beef"],"ing":[{"q":2.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"2 LBS. GROUND BEEF"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN ONION, DICED"},{"q":1.0,"u":"","n":"Green Bell Pepper","c":"Spices & Seasoning","raw":"1 GREEN BELL PEPPER, DICED"},{"q":0.5,"u":"cup","n":"Carrots","c":"Produce","raw":"1/2 CUP CARROTS, SHREDDED"},{"q":6.0,"u":"oz","n":"Tomato Paste","c":"Canned & Jarred","raw":"6 OZ TOMATO PASTE"},{"q":2.0,"u":"tbsp","n":"Raw Honey","c":"Oils, Sauces & Condiments","raw":"2 TBSP RAW HONEY"},{"q":2.0,"u":"tbsp","n":"Chili Powder","c":"Spices & Seasoning","raw":"2 TBSP CHILI POWDER"},{"q":1.5,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 1/2 TSP GARLIC POWDER"},{"q":0.25,"u":"tsp","n":"Cinnamon","c":"Spices & Seasoning","raw":"1/4 TSP CINNAMON"},{"q":1.0,"u":"tbsp","n":"Dijon Mustard","c":"Oils, Sauces & Condiments","raw":"1 TBSP DIJON MUSTARD"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker.","Cook on low for 5-6 hours.","Mince up the meat in the slow cooker and stir once cooked.","Serve in your favorite bun and enjoy!"]},{"id":"r48","name":"Spaghetti Squash with tomato sauce","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["vegetarian"],"ing":[{"q":1.0,"u":"","n":"Spaghetti Squash","c":"Produce","raw":"1 SPAGHETTI SQUASH"},{"q":2.0,"u":"","n":"Bay Leaves","c":"Spices & Seasoning","raw":"2 BAY LEAVES"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":2.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"2 (14.5 OZ) CANS DICED TOMATOES"},{"q":1.0,"u":"","n":"Tomato Paste","c":"Canned & Jarred","raw":"1 (6 OZ) CAN TOMATO PASTE"},{"q":1.0,"u":"tsp","n":"Italian Seasoning","c":"Spices & Seasoning","raw":"1 TSP ITALIAN SEASONING"},{"q":1.0,"u":"","n":"Yellow Onion","c":"Produce","raw":"1 SMALL YELLOW ONION DICED OR (1 CUP FROZEN DICED ONION)"},{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":2.0,"u":"tsp","n":"Basil","c":"Produce","raw":"2 TSP DRIED BASIL"},{"q":1.0,"u":"bunch","n":"Basil","c":"Pasta, Grains & Bread","raw":"1 BUNCH FRESH BASIL"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker, cook on low 3-4 hours.","During the last hour of cook time, halve the spaghetti squash, season with salt, pepper, and some olive oil. Cook in preheated oven at 400 for 35-45 min.","Allow spaghetti squash to cool to touch, then fluff out spaghetti squash while still warm.","Before serving, stir fresh basil into the sauce in slow cooker and serve over spaghetti squash. Optional: garnish with fresh basil."]},{"id":"r49","name":"Spaghetti and Meatballs","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["beef","pork"],"ing":[{"q":1.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"1 LB. GROUND BEEF"},{"q":1.0,"u":"lb","n":"Italian Sausage","c":"Spices & Seasoning","raw":"1 LB. GROUND ITALIAN SAUSAGE"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN ONION, DICED"},{"q":1.0,"u":"","n":"Gala Apple","c":"Produce","raw":"1 GALA APPLE, DICED"},{"q":1.0,"u":"","n":"Egg","c":"Dairy & Eggs","raw":"1 LARGE EGG"},{"q":2.0,"u":"tbsp","n":"Italian Seasoning","c":"Spices & Seasoning","raw":"2 TBSP ITALIAN SEASONING"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TSP PEPPER"},{"q":2.0,"u":"","n":"Tomato Sauce","c":"Canned & Jarred","raw":"2 (24 OZ) TOMATO SAUCE"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of gallon freezer bag into slow cooker.","Cook on low for 3-4 hours.","Cook pasta according to package and serve meatballs and sauce over noodles."]},{"id":"r50","name":"Spicy Tortilla Soup","serves":"4-6","cook":"3-4 HOURS","cookHours":4,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":1.0,"u":"","n":"Black Beans","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN BLACK BEANS, DRAINED AND RINSED"},{"q":1.0,"u":"","n":"Tomatoes","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATOES"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP CUMIN"},{"q":3.0,"u":"oz","n":"Tomato Paste","c":"Canned & Jarred","raw":"3 OZ CAN TOMATO PASTE"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TSP PEPPER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 4 cups broth.","Cook on low for 3-4 hours.","Stir and serve!"]},{"id":"r51","name":"Split Pea Soup","serves":"4-6","cook":"6-8 HOURS","cookHours":8,"supplies":"CROCKPOT","proteins":["beef","chicken","pork"],"ing":[{"q":2.0,"u":"tbsp","n":"Olive Oil","c":"Canned & Jarred","raw":"2 TBSP OLIVE OIL"},{"q":1.5,"u":"cup","n":"Carrots","c":"Produce","raw":"1 1/2 CUPS SHREDDED CARROTS"},{"q":1.0,"u":"cup","n":"Frozen Onion","c":"Produce","raw":"1 CUP FROZEN DICED ONION"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":2.0,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"2 CUP WATER"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":16.0,"u":"oz","n":"Ham Steak","c":"Meat & Protein","raw":"16 OZ HAM STEAK, DICED"},{"q":16.0,"u":"oz","n":"Split Peas","c":"Pasta, Grains & Bread","raw":"16 OZ DRIED SPLIT PEAS"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"tsp","n":"Thyme","c":"Spices & Seasoning","raw":"1 TSP THYME"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/2 TSP BLACK PEPPER"}],"cuisine":"American","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of freezer bag into slow cooker then add 2 cups water and 4 cups broth into slow cooker.","Cook on low 6-8 hours.","Stir, split peas should break apart as you stir. (If soup is too thick add ½ cup water and stir until you achieve desired texture.).","Serve and enjoy!"]},{"id":"r52","name":"Tex Mex Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS. BONELESS SKINLESS CHICKEN THIGHS"},{"q":2.0,"u":"tbsp","n":"Corn Starch","c":"Pantry & Baking","raw":"2 TBSP CORN STARCH"},{"q":1.0,"u":"","n":"Green Pepper Cut Into 1-Inch Strips","c":"Spices & Seasoning","raw":"1 GREEN PEPPER, CUT INTO 1-INCH STRIPS"},{"q":1.0,"u":"","n":"Onion Cut Into","c":"Produce","raw":"1 LARGE ONION, CUT INTO"},{"q":1.5,"u":"cup","n":"Salsa","c":"Canned & Jarred","raw":"1 1/2 CUP SALSA"},{"q":1.0,"u":"cup","n":"Black Beans","c":"Canned & Jarred","raw":"1 CUP BLACK BEANS"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TSP GROUND CUMIN"},{"q":2.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"2 TSP SALT"},{"q":1.0,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1 TSP BLACK PEPPER"}],"cuisine":"Mexican","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Dump contents of freezer bag into slow cooker.","Cook on low for 4-6 hours.","During the last hour of cooking add in black beans.","Remove chicken and shred, stir back into slow cooker.","Serve over rice or in tortillas. Optional: top with favorite taco toppings."]},{"id":"r53","name":"Thai Chicken","serves":"4-6","cook":"4-6 HOURS","cookHours":6,"supplies":"CROCKPOT","proteins":["chicken"],"ing":[{"q":3.0,"u":"lb","n":"Chicken Thighs","c":"Meat & Protein","raw":"2-3 LBS BONELESS SKINLESS CHICKEN THIGHS"},{"q":1.5,"u":"cup","n":"Red Bell Pepper","c":"Produce","raw":"1 1/2 CUP RED BELL PEPPER, DICED"},{"q":1.5,"u":"cup","n":"Frozen Onions","c":"Produce","raw":"1 1/2 CUPS FROZEN DICED ONIONS"},{"q":0.5,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"1/2 CUP CHICKEN BROTH"},{"q":0.25,"u":"cup","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1/4 CUP SOY SAUCE"},{"q":1.0,"u":"tbsp","n":"Cumin","c":"Spices & Seasoning","raw":"1 TBSP CUMIN"},{"q":1.5,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 1/2 TSP GARLIC POWDER"},{"q":0.5,"u":"tsp","n":"Red Pepper Flakes","c":"Spices & Seasoning","raw":"1/2 TSP RED PEPPER FLAKES"},{"q":0.5,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1/2 TSP SALT"},{"q":0.25,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"1/4 TSP BLACK PEPPER"},{"q":1.0,"u":"tbsp","n":"Corn Starch","c":"Pantry & Baking","raw":"1 TBSP CORN STARCH"},{"q":0.6666666666666666,"u":"cup","n":"Peanut Butter","c":"Dairy & Eggs","raw":"2/3 CUP PEANUT BUTTER"},{"q":1.0,"u":"tbsp","n":"Soy Sauce","c":"Oils, Sauces & Condiments","raw":"1 TBSP SOY SAUCE"},{"q":0.3333333333333333,"u":"cup","n":"Lime Juice Juice From 2-3 Limes","c":"Oils, Sauces & Condiments","raw":"1/3 CUP FRESH LIME JUICE, JUICE FROM 2-3 LIMES"},{"q":1.0,"u":"bunch","n":"Green Onion","c":"Pasta, Grains & Bread","raw":"1 BUNCH GREEN ONION, DICED"}],"cuisine":"Asian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into the slow cooker (set sauce in quart size bag aside).","Cook on low 4-6 hours.","When there is 1 hour cook time remaining, whisk sauce ingredients and stir into slow cooker.","Shred chicken and stir back into sauce.","Serve over rice noodles and garnish with green onions."]},{"id":"r54","name":"Tuscan Tortellini Soup","serves":"4-6","cook":"2-3 HOURS","cookHours":3,"supplies":"CROCKPOT","proteins":["chicken","pork"],"ing":[{"q":1.0,"u":"lb","n":"Sweet Italian Sausage","c":"Spices & Seasoning","raw":"1 LB. SWEET ITALIAN SAUSAGE"},{"q":2.0,"u":"tsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"2 TSP ONION POWDER"},{"q":1.0,"u":"tbsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"1 TBSP GARLIC POWDER"},{"q":1.0,"u":"","n":"Tomato Undrained","c":"Canned & Jarred","raw":"1 (14.5 OZ) CAN DICED TOMATO, UNDRAINED"},{"q":4.0,"u":"cup","n":"Chicken Broth","c":"Meat & Protein","raw":"4 CUPS CHICKEN BROTH"},{"q":4.0,"u":"cup","n":"Water","c":"Pantry & Baking","raw":"4 CUPS WATER"},{"q":1.0,"u":"tsp","n":"Basil","c":"Produce","raw":"1 TSP DRIED BASIL"},{"q":0.5,"u":"tsp","n":"Pepper","c":"Spices & Seasoning","raw":"1/2 TSP PEPPER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":1.0,"u":"tsp","n":"Italian Seasoning","c":"Spices & Seasoning","raw":"1 TSP ITALIAN SEASONING"},{"q":1.0,"u":"","n":"Bay Leaf","c":"Spices & Seasoning","raw":"1 BAY LEAF"},{"q":1.0,"u":"","n":"Cheese Tortellini","c":"Dairy & Eggs","raw":"1 (20 OZ) CHEESE TORTELLINI"}],"cuisine":"Italian","steps":["Thaw overnight in fridge (meal may not be 100% thawed but that is OK).","Add freezer bag contents into slow cooker plus 4 cups chicken broth and 4 cups water.","Cook on low for 2-3 hours, add spinach and tortellini during the last 1 hour cooking time.","Stir and serve! Garnish with fresh parsley and parmesan cheese if desired."]},{"id":"r55","name":"Ziti Bake","serves":"4-6","cook":"60 MIN","cookHours":60,"supplies":"ALUMINUM","proteins":["beef"],"ing":[{"q":1.0,"u":"lb","n":"Beef","c":"Meat & Protein","raw":"1 LB. GROUND BEEF"},{"q":1.0,"u":"","n":"Red Pasta Sauce","c":"Pasta, Grains & Bread","raw":"1 (24 OZ) JAR RED PASTA SAUCE"},{"q":1.0,"u":"tbsp","n":"Onion Powder","c":"Spices & Seasoning","raw":"1 TBSP ONION POWDER"},{"q":2.0,"u":"tsp","n":"Garlic Powder","c":"Spices & Seasoning","raw":"2 TSP GARLIC POWDER"},{"q":1.0,"u":"tsp","n":"Salt","c":"Spices & Seasoning","raw":"1 TSP SALT"},{"q":0.5,"u":"tsp","n":"Black Pepper","c":"Spices & Seasoning","raw":"½ TSP BLACK PEPPER"},{"q":4.0,"u":"","n":"Eggs","c":"Dairy & Eggs","raw":"4 LARGE EGGS"},{"q":4.0,"u":"tbsp","n":"Parmesan Cheese","c":"Dairy & Eggs","raw":"4 TBSP PARMESAN CHEESE"},{"q":2.0,"u":"cup","n":"Cheddar Cheese","c":"Dairy & Eggs","raw":"2 CUPS CHEDDAR CHEESE"}],"cuisine":"Italian","steps":["Preheat oven to 400.","Cook frozen baked ziti for 60 min – 70 min.","Allow to cool for 15 min, and serve."]}];
+
+const CAT_ORDER = [
+  "Meat & Protein",
+  "Produce",
+  "Dairy & Eggs",
+  "Canned & Jarred",
+  "Pasta, Grains & Bread",
+  "Oils, Sauces & Condiments",
+  "Pantry & Baking",
+  "Spices & Seasoning",
+  "Other",
+];
+
+const CAT_COLOR = {
+  "Meat & Protein": "#B0532C",
+  Produce: "#6C8E4E",
+  "Dairy & Eggs": "#C99A3B",
+  "Canned & Jarred": "#7A8C6B",
+  "Pasta, Grains & Bread": "#9C7A4E",
+  "Oils, Sauces & Condiments": "#8A9A5B",
+  "Pantry & Baking": "#94886B",
+  "Spices & Seasoning": "#A6763F",
+  Other: "#8A8375",
+};
+
+const PROTEIN_LABEL = {
+  chicken: "Chicken",
+  beef: "Beef",
+  pork: "Pork",
+  turkey: "Turkey",
+  vegetarian: "Meat-free",
+};
+const PROTEIN_COLOR = {
+  chicken: "#C6893B",
+  beef: "#A34A2A",
+  pork: "#B06A7A",
+  turkey: "#8A6D3B",
+  vegetarian: "#5E8A4E",
+};
+
+const CUISINE_COLOR = {
+  American: "#8A6D3B",
+  Mexican: "#B0532C",
+  "Latin American": "#B0532C",
+  Italian: "#7A8C4E",
+  Asian: "#4E7C7A",
+  Indian: "#B07A2C",
+  Caribbean: "#4E8C6B",
+};
+
+const PANTRY_CATS = ["Spices & Seasoning", "Pantry & Baking"];
+
+/* ---- fraction-friendly quantity display ---- */
+function qtyText(n) {
+  if (n == null) return "";
+  const whole = Math.floor(n + 1e-9);
+  const frac = n - whole;
+  const map = [
+    [0.125, "⅛"], [0.25, "¼"], [1 / 3, "⅓"], [0.375, "⅜"],
+    [0.5, "½"], [0.625, "⅝"], [2 / 3, "⅔"], [0.75, "¾"], [0.875, "⅞"],
+  ];
+  let fstr = "";
+  for (const [v, s] of map) if (Math.abs(frac - v) < 0.04) { fstr = s; break; }
+  if (fstr) return whole ? `${whole}${fstr}` : fstr;
+  const rounded = Math.round(n * 100) / 100;
+  return String(rounded % 1 === 0 ? rounded : rounded);
+}
+
+/* ---- persistence via artifact storage (falls back to memory) ---- */
+const STORE_KEY = "familydinner:v1";
+function loadState() {
+  try {
+    const v = localStorage.getItem(STORE_KEY);
+    if (v) return JSON.parse(v);
+  } catch (e) { /* first run / unavailable */ }
+  return null;
+}
+function saveState(obj) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch (e) {}
+}
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+const RATING_META = {
+  love: { label: "Love it", mark: "♥", color: "#B0532C" },
+  ok: { label: "It's fine", mark: "◐", color: "#C6893B" },
+  skip: { label: "Skip", mark: "✕", color: "#8A8375" },
+};
+
+function App() {
+  const [tab, setTab] = useState("meals");
+  const [ratings, setRatings] = useState({});
+  const [hidden, setHidden] = useState({});
+  const [weeks, setWeeks] = useState([]);
+  const [activeWeek, setActiveWeek] = useState(null);
+  const [checked, setChecked] = useState({});
+  const [shopWeeks, setShopWeeks] = useState({});
+  const [hidePantry, setHidePantry] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // load once
+  useEffect(() => {
+    (async () => {
+      const s = await loadState();
+      if (s) {
+        setRatings(s.ratings || {});
+        setHidden(s.hidden || {});
+        setWeeks(s.weeks || []);
+        setChecked(s.checked || {});
+        setShopWeeks(s.shopWeeks || {});
+        setHidePantry(!!s.hidePantry);
+        setActiveWeek((s.weeks && s.weeks[0] && s.weeks[0].id) || null);
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  // save on change (after load)
+  useEffect(() => {
+    if (!loaded) return;
+    saveState({ ratings, hidden, weeks, checked, shopWeeks, hidePantry });
+  }, [ratings, hidden, weeks, checked, shopWeeks, hidePantry, loaded]);
+
+  const byId = useMemo(() => Object.fromEntries(DATA.map((r) => [r.id, r])), []);
+
+  /* ---------- week helpers ---------- */
+  function addWeek(name) {
+    const w = { id: uid(), name: name || `Week ${weeks.length + 1}`, items: [] };
+    setWeeks((p) => [...p, w]);
+    setActiveWeek(w.id);
+    setShopWeeks((p) => ({ ...p, [w.id]: true }));
+    return w.id;
+  }
+  function renameWeek(id, name) {
+    setWeeks((p) => p.map((w) => (w.id === id ? { ...w, name } : w)));
+  }
+  function removeWeek(id) {
+    setWeeks((p) => p.filter((w) => w.id !== id));
+    setShopWeeks((p) => { const n = { ...p }; delete n[id]; return n; });
+    if (activeWeek === id) setActiveWeek((weeks.find((w) => w.id !== id) || {}).id || null);
+  }
+  function addToWeek(weekId, rid) {
+    setWeeks((p) =>
+      p.map((w) => {
+        if (w.id !== weekId) return w;
+        if (w.items.some((it) => it.rid === rid)) return w;
+        return { ...w, items: [...w.items, { rid, mult: 2 }] };
+      })
+    );
+  }
+  function removeFromWeek(weekId, rid) {
+    setWeeks((p) => p.map((w) => (w.id === weekId ? { ...w, items: w.items.filter((it) => it.rid !== rid) } : w)));
+  }
+  function setMult(weekId, rid, mult) {
+    setWeeks((p) => p.map((w) => (w.id === weekId ? { ...w, items: w.items.map((it) => (it.rid === rid ? { ...it, mult } : it)) } : w)));
+  }
+
+  function rate(rid, val) {
+    setRatings((p) => ({ ...p, [rid]: p[rid] === val ? undefined : val }));
+  }
+  function toggleHide(rid) {
+    setHidden((p) => ({ ...p, [rid]: !p[rid] }));
+  }
+
+  const weekCount = (rid) => weeks.reduce((n, w) => n + (w.items.some((it) => it.rid === rid) ? 1 : 0), 0);
+
+  return (
+    <div className="fd-root">
+      <style>{CSS}</style>
+
+      <header className="fd-top">
+        <div className="fd-brand">
+          <span className="fd-pot" aria-hidden>◗</span>
+          <div>
+            <div className="fd-word">The Prep Board</div>
+            <div className="fd-sub">freezer-to-slow-cooker planning · {DATA.length} meals</div>
+          </div>
+        </div>
+        <nav className="fd-tabs">
+          {[
+            ["meals", "Meals"],
+            ["weeks", "My Weeks"],
+            ["cook", "Instructions"],
+            ["grocery", "Grocery List"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={"fd-tab" + (tab === k ? " on" : "")}
+              onClick={() => setTab(k)}
+            >
+              {label}
+              {k === "weeks" && weeks.length > 0 && <span className="fd-badge">{weeks.length}</span>}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      <main className="fd-main">
+        {tab === "meals" && (
+          <MealsTab
+            data={DATA}
+            ratings={ratings}
+            hidden={hidden}
+            rate={rate}
+            toggleHide={toggleHide}
+            weeks={weeks}
+            addWeek={addWeek}
+            addToWeek={addToWeek}
+            weekCount={weekCount}
+          />
+        )}
+        {tab === "weeks" && (
+          <WeeksTab
+            weeks={weeks}
+            byId={byId}
+            activeWeek={activeWeek}
+            setActiveWeek={setActiveWeek}
+            addWeek={addWeek}
+            renameWeek={renameWeek}
+            removeWeek={removeWeek}
+            removeFromWeek={removeFromWeek}
+            setMult={setMult}
+            ratings={ratings}
+            goShop={() => setTab("grocery")}
+            goMeals={() => setTab("meals")}
+          />
+        )}
+        {tab === "cook" && (
+          <InstructionsTab
+            weeks={weeks}
+            byId={byId}
+            activeWeek={activeWeek}
+            setActiveWeek={setActiveWeek}
+            goMeals={() => setTab("meals")}
+          />
+        )}
+        {tab === "grocery" && (
+          <GroceryTab
+            weeks={weeks}
+            byId={byId}
+            shopWeeks={shopWeeks}
+            setShopWeeks={setShopWeeks}
+            checked={checked}
+            setChecked={setChecked}
+            hidePantry={hidePantry}
+            setHidePantry={setHidePantry}
+            goMeals={() => setTab("meals")}
+          />
+        )}
+      </main>
+    </div>
+  );
+}
+
+/* ================= MEALS ================= */
+function MealsTab({ data, ratings, hidden, rate, toggleHide, weeks, addWeek, addToWeek, weekCount }) {
+  const [q, setQ] = useState("");
+  const [protein, setProtein] = useState("all");
+  const [cuisine, setCuisine] = useState("all");
+  const [quick, setQuick] = useState(false);
+  const [sort, setSort] = useState("az");
+  const [showHidden, setShowHidden] = useState(false);
+  const [menuFor, setMenuFor] = useState(null);
+
+  const proteins = ["all", "chicken", "beef", "pork", "turkey", "vegetarian"];
+  const cuisines = useMemo(
+    () => ["all", ...Array.from(new Set(data.map((r) => r.cuisine).filter(Boolean))).sort()],
+    [data]
+  );
+
+  const list = useMemo(() => {
+    let out = data.filter((r) => {
+      if (!showHidden && hidden[r.id]) return false;
+      if (protein !== "all" && !r.proteins.includes(protein)) return false;
+      if (cuisine !== "all" && r.cuisine !== cuisine) return false;
+      if (quick && !(r.cookHours != null && r.cookHours <= 4)) return false;
+      if (q.trim()) {
+        const hay = (r.name + " " + (r.cuisine || "") + " " + r.ing.map((i) => i.n).join(" ")).toLowerCase();
+        if (!hay.includes(q.trim().toLowerCase())) return false;
+      }
+      return true;
+    });
+    const rw = { love: 0, ok: 1, undefined: 2, ok2: 2, skip: 3 };
+    out.sort((a, b) => {
+      if (sort === "az") return a.name.localeCompare(b.name);
+      if (sort === "cook") return (a.cookHours || 99) - (b.cookHours || 99);
+      if (sort === "rating") {
+        const ra = rw[ratings[a.id]] ?? 2, rb = rw[ratings[b.id]] ?? 2;
+        return ra - rb || a.name.localeCompare(b.name);
+      }
+      return 0;
+    });
+    return out;
+  }, [data, q, protein, cuisine, quick, sort, showHidden, hidden, ratings]);
+
+  const hiddenCount = data.filter((r) => hidden[r.id]).length;
+
+  return (
+    <div>
+      <div className="fd-toolbar">
+        <input
+          className="fd-search"
+          placeholder="Search meals, ingredients, or cuisine (e.g. Italian, chicken, lime)…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div className="fd-chips">
+          {proteins.map((p) => (
+            <button
+              key={p}
+              className={"fd-chip" + (protein === p ? " on" : "")}
+              style={protein === p && p !== "all" ? { background: PROTEIN_COLOR[p], borderColor: PROTEIN_COLOR[p], color: "#fff" } : null}
+              onClick={() => setProtein(p)}
+            >
+              {p === "all" ? "All proteins" : PROTEIN_LABEL[p]}
+            </button>
+          ))}
+          <button className={"fd-chip" + (quick ? " on" : "")} onClick={() => setQuick((v) => !v)}>
+            ⏱ Quick (≤4h)
+          </button>
+        </div>
+        <div className="fd-toolrow">
+          <label className="fd-sortlab">
+            Cuisine
+            <select className="fd-select" value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+              {cuisines.map((c) => (
+                <option key={c} value={c}>{c === "all" ? "All cuisines" : c}</option>
+              ))}
+            </select>
+          </label>
+          <label className="fd-sortlab">
+            Sort
+            <select className="fd-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option value="az">A–Z</option>
+              <option value="cook">Cook time</option>
+              <option value="rating">My rating</option>
+            </select>
+          </label>
+          {hiddenCount > 0 && (
+            <button className="fd-link" onClick={() => setShowHidden((v) => !v)}>
+              {showHidden ? "Hide skipped" : `Show skipped (${hiddenCount})`}
+            </button>
+          )}
+          <span className="fd-count">{list.length} shown</span>
+        </div>
+      </div>
+
+      {list.length === 0 ? (
+        <div className="fd-empty">No meals match those filters. Loosen a filter to see more.</div>
+      ) : (
+        <div className="fd-grid">
+          {list.map((r) => (
+            <MealCard
+              key={r.id}
+              r={r}
+              rating={ratings[r.id]}
+              isHidden={!!hidden[r.id]}
+              rate={rate}
+              toggleHide={toggleHide}
+              weeks={weeks}
+              addWeek={addWeek}
+              addToWeek={addToWeek}
+              inWeeks={weekCount(r.id)}
+              menuOpen={menuFor === r.id}
+              setMenu={(v) => setMenuFor(v ? r.id : null)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MealCard({ r, rating, isHidden, rate, toggleHide, weeks, addWeek, addToWeek, inWeeks, menuOpen, setMenu }) {
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  return (
+    <article className={"fd-card" + (isHidden ? " dim" : "")}>
+      <div className="fd-card-tab">
+        {r.proteins.map((p) => (
+          <span key={p} className="fd-ptag" style={{ background: PROTEIN_COLOR[p] }}>
+            {PROTEIN_LABEL[p]}
+          </span>
+        ))}
+        {r.cuisine && (
+          <span className="fd-ctag" style={{ color: CUISINE_COLOR[r.cuisine] || "#7C7361", borderColor: (CUISINE_COLOR[r.cuisine] || "#CDC3AB") + "66" }}>
+            {r.cuisine}
+          </span>
+        )}
+      </div>
+      <h3 className="fd-card-name">{r.name}</h3>
+      <div className="fd-meta">
+        <span>🍽 serves {r.serves}</span>
+        <span>· ⏱ {r.cook || "—"}</span>
+        <span>· {r.ing.length} ingredients</span>
+      </div>
+
+      {open && (
+        <ul className="fd-inglist">
+          {r.ing.map((i, k) => (
+            <li key={k}>{i.raw}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="fd-card-actions">
+        <div className="fd-rate">
+          {Object.entries(RATING_META).map(([k, m]) => (
+            <button
+              key={k}
+              title={m.label}
+              className={"fd-rbtn" + (rating === k ? " on" : "")}
+              style={rating === k ? { background: m.color, borderColor: m.color, color: "#fff" } : { color: m.color }}
+              onClick={() => rate(r.id, k)}
+            >
+              <span aria-hidden>{m.mark}</span>
+            </button>
+          ))}
+        </div>
+        <button className="fd-mini" onClick={() => setOpen((v) => !v)}>
+          {open ? "Hide" : "Ingredients"}
+        </button>
+      </div>
+
+      <div className="fd-card-foot">
+        <div className="fd-addwrap">
+          <button className="fd-add" onClick={() => setMenu(!menuOpen)}>
+            + Add to week {inWeeks > 0 && <span className="fd-inweeks">in {inWeeks}</span>}
+          </button>
+          {menuOpen && (
+            <div className="fd-menu" onMouseLeave={() => setMenu(false)}>
+              {weeks.length === 0 && <div className="fd-menu-empty">No weeks yet</div>}
+              {weeks.map((w) => {
+                const has = w.items.some((it) => it.rid === r.id);
+                return (
+                  <button
+                    key={w.id}
+                    className={"fd-menu-item" + (has ? " has" : "")}
+                    onClick={() => { addToWeek(w.id, r.id); setMenu(false); }}
+                  >
+                    {has ? "✓ " : ""}{w.name}
+                  </button>
+                );
+              })}
+              <div className="fd-menu-new">
+                <input
+                  className="fd-menu-input"
+                  placeholder="New week…"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const id = addWeek(newName.trim() || undefined);
+                      addToWeek(id, r.id);
+                      setNewName(""); setMenu(false);
+                    }
+                  }}
+                />
+                <button
+                  className="fd-menu-add"
+                  onClick={() => { const id = addWeek(newName.trim() || undefined); addToWeek(id, r.id); setNewName(""); setMenu(false); }}
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <button className="fd-hide" onClick={() => toggleHide(r.id)}>
+          {isHidden ? "Unhide" : "Hide"}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ================= WEEKS ================= */
+function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek, removeWeek, removeFromWeek, setMult, ratings, goShop, goMeals }) {
+  const week = weeks.find((w) => w.id === activeWeek) || weeks[0];
+  const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+
+  if (weeks.length === 0) {
+    return (
+      <div className="fd-empty big">
+        <p className="fd-empty-head">No weeks planned yet.</p>
+        <p>Build a week, then drop meals into it from the Meals tab. Your grocery list fills in automatically.</p>
+        <div className="fd-empty-actions">
+          <button className="fd-btn primary" onClick={() => addWeek()}>Start a week</button>
+          <button className="fd-btn" onClick={goMeals}>Browse meals</button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalCook = week ? week.items.map((it) => byId[it.rid]).filter(Boolean) : [];
+  const proteinMix = {};
+  totalCook.forEach((r) => r.proteins.forEach((p) => (proteinMix[p] = (proteinMix[p] || 0) + 1)));
+
+  return (
+    <div className="fd-weeks">
+      <aside className="fd-weeklist">
+        {weeks.map((w) => (
+          <button
+            key={w.id}
+            className={"fd-weekitem" + (w.id === (week && week.id) ? " on" : "")}
+            onClick={() => setActiveWeek(w.id)}
+          >
+            <span className="fd-weekname">{w.name}</span>
+            <span className="fd-weekmeals">{w.items.length} meals</span>
+          </button>
+        ))}
+        <button className="fd-weekadd" onClick={() => addWeek()}>+ New week</button>
+      </aside>
+
+      <section className="fd-weekmain">
+        <div className="fd-weekhead">
+          {editing ? (
+            <input
+              autoFocus
+              className="fd-weekedit"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={() => { renameWeek(week.id, nameDraft.trim() || week.name); setEditing(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { renameWeek(week.id, nameDraft.trim() || week.name); setEditing(false); } }}
+            />
+          ) : (
+            <h2 className="fd-weektitle" onClick={() => { setNameDraft(week.name); setEditing(true); }}>
+              {week.name} <span className="fd-pencil">✎</span>
+            </h2>
+          )}
+          <div className="fd-weekactions">
+            <button className="fd-btn" onClick={goMeals}>+ Add meals</button>
+            <button className="fd-btn primary" onClick={goShop} disabled={week.items.length === 0}>
+              Grocery list →
+            </button>
+            <button className="fd-btn danger ghost" onClick={() => removeWeek(week.id)}>Delete</button>
+          </div>
+        </div>
+
+        {week.items.length > 0 && (
+          <div className="fd-weekstats">
+            {Object.entries(proteinMix).map(([p, n]) => (
+              <span key={p} className="fd-statchip" style={{ borderColor: PROTEIN_COLOR[p], color: PROTEIN_COLOR[p] }}>
+                {PROTEIN_LABEL[p]} ×{n}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {week.items.length === 0 ? (
+          <div className="fd-empty">
+            This week is empty. <button className="fd-link" onClick={goMeals}>Add some meals →</button>
+          </div>
+        ) : (
+          <ul className="fd-weekmeal-list">
+            {week.items.map((it) => {
+              const r = byId[it.rid];
+              if (!r) return null;
+              return (
+                <li key={it.rid} className="fd-weekmeal">
+                  <div className="fd-wm-left">
+                    <div className="fd-wm-name">
+                      {r.name}
+                      {ratings[r.id] === "love" && <span className="fd-love"> ♥</span>}
+                    </div>
+                    <div className="fd-wm-meta">
+                      {r.proteins.map((p) => PROTEIN_LABEL[p]).join(", ")} · ⏱ {r.cook} · serves {r.serves}
+                    </div>
+                  </div>
+                  <div className="fd-wm-right">
+                    <div className="fd-multi">
+                      <span className="fd-multi-lab">batches</span>
+                      {[1, 2, 3].map((m) => (
+                        <button
+                          key={m}
+                          className={"fd-multi-btn" + (it.mult === m ? " on" : "")}
+                          onClick={() => setMult(week.id, it.rid, m)}
+                        >
+                          ×{m}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="fd-remove" onClick={() => removeFromWeek(week.id, it.rid)} title="Remove">✕</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* ================= GROCERY ================= */
+function GroceryTab({ weeks, byId, shopWeeks, setShopWeeks, checked, setChecked, hidePantry, setHidePantry, goMeals }) {
+  const chosen = weeks.filter((w) => shopWeeks[w.id] && w.items.length > 0);
+
+  const grouped = useMemo(() => {
+    const acc = {}; // cat -> key -> {n,u,cat,qty,hasQty,froms:Set}
+    chosen.forEach((w) => {
+      w.items.forEach((it) => {
+        const r = byId[it.rid];
+        if (!r) return;
+        r.ing.forEach((i) => {
+          const key = (i.n + "|" + (i.u || "")).toLowerCase();
+          const cat = i.c || "Other";
+          acc[cat] = acc[cat] || {};
+          const cur = acc[cat][key] || { n: i.n, u: i.u, cat, qty: 0, hasQty: true, count: 0 };
+          if (i.q == null) cur.hasQty = false;
+          else cur.qty += i.q * (it.mult || 1);
+          cur.count += (it.mult || 1);
+          acc[cat][key] = cur;
+        });
+      });
+    });
+    return acc;
+  }, [chosen, byId]);
+
+  const cats = CAT_ORDER.filter((c) => grouped[c] && !(hidePantry && PANTRY_CATS.includes(c)));
+
+  const allItems = [];
+  cats.forEach((c) => Object.entries(grouped[c]).forEach(([k, v]) => allItems.push({ c, k, v })));
+  const total = allItems.length;
+  const done = allItems.filter(({ c, k }) => checked[c + "::" + k]).length;
+
+  function toggle(c, k) {
+    const key = c + "::" + k;
+    setChecked((p) => ({ ...p, [key]: !p[key] }));
+  }
+  function clearChecks() { setChecked({}); }
+
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [fmt, setFmt] = useState("dash");   // "dash" | "check" | "bare"
+  const [flat, setFlat] = useState(false);  // false = grouped by aisle, true = flat A–Z
+  const [withQty, setWithQty] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const taRef = useRef(null);
+
+  function itemLine(v) {
+    const prefix = fmt === "check" ? "☐ " : fmt === "dash" ? "- " : "";
+    const q = withQty && v.hasQty && v.qty ? qtyText(v.qty) + " " + (v.u || "") + " " : "";
+    return prefix + (q + v.n).replace(/\s+/g, " ").trim();
+  }
+
+  function buildText() {
+    const header = "Grocery List — " + chosen.map((w) => w.name).join(", ");
+    if (flat) {
+      const all = [];
+      cats.forEach((c) => Object.values(grouped[c]).forEach((v) => all.push(v)));
+      all.sort((a, b) => a.n.localeCompare(b.n));
+      return header + "\n\n" + all.map(itemLine).join("\n") + "\n";
+    }
+    let out = header + "\n";
+    cats.forEach((c) => {
+      out += "\n" + c.toUpperCase() + "\n";
+      Object.values(grouped[c])
+        .sort((a, b) => a.n.localeCompare(b.n))
+        .forEach((v) => { out += itemLine(v) + "\n"; });
+    });
+    return out;
+  }
+
+  const copyText = copyOpen ? buildText() : "";
+
+  useEffect(() => {
+    if (copyOpen && taRef.current) {
+      taRef.current.focus();
+      taRef.current.select();
+    }
+  }, [copyOpen, fmt, flat, withQty]);
+
+  async function copyNow() {
+    const text = buildText();
+    let ok = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      }
+    } catch (e) { ok = false; }
+    if (!ok && taRef.current) {
+      try {
+        taRef.current.focus();
+        taRef.current.select();
+        ok = document.execCommand("copy");
+      } catch (e) { ok = false; }
+    }
+    if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1800); }
+  }
+
+  if (weeks.length === 0) {
+    return (
+      <div className="fd-empty big">
+        <p className="fd-empty-head">Nothing to shop for yet.</p>
+        <p>Plan a week of meals and the ingredients gather here, combined and sorted by aisle.</p>
+        <button className="fd-btn primary" onClick={goMeals}>Browse meals</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fd-grocery">
+      <div className="fd-shopbar">
+        <div className="fd-shopweeks">
+          <span className="fd-shoplab">Shopping for:</span>
+          {weeks.map((w) => (
+            <label key={w.id} className={"fd-wtoggle" + (shopWeeks[w.id] ? " on" : "") + (w.items.length === 0 ? " disabled" : "")}>
+              <input
+                type="checkbox"
+                checked={!!shopWeeks[w.id]}
+                disabled={w.items.length === 0}
+                onChange={(e) => setShopWeeks((p) => ({ ...p, [w.id]: e.target.checked }))}
+              />
+              {w.name} <span className="fd-wtoggle-n">{w.items.length}</span>
+            </label>
+          ))}
+        </div>
+        <label className="fd-pantry-toggle">
+          <input type="checkbox" checked={hidePantry} onChange={(e) => setHidePantry(e.target.checked)} />
+          I already have spices &amp; pantry staples
+        </label>
+      </div>
+
+      {chosen.length === 0 ? (
+        <div className="fd-empty">Pick at least one planned week above to build the list.</div>
+      ) : total === 0 ? (
+        <div className="fd-empty">Those weeks have no meals yet.</div>
+      ) : (
+        <>
+          <div className="fd-progress">
+            <div className="fd-progress-track"><div className="fd-progress-fill" style={{ width: (total ? (done / total) * 100 : 0) + "%" }} /></div>
+            <span className="fd-progress-lab">{done}/{total} gathered</span>
+            <div className="fd-gr-actions">
+              <button className="fd-mini strong" onClick={() => setCopyOpen(true)}>Copy list</button>
+              <button className="fd-mini" onClick={() => window.print()}>Print</button>
+              {done > 0 && <button className="fd-mini" onClick={clearChecks}>Reset checks</button>}
+            </div>
+          </div>
+
+          <div className="fd-aisles">
+            {cats.map((c) => {
+              const items = Object.values(grouped[c]).sort((a, b) => a.n.localeCompare(b.n));
+              return (
+                <section key={c} className="fd-aisle">
+                  <h3 className="fd-aisle-head">
+                    <span className="fd-aisle-dot" style={{ background: CAT_COLOR[c] }} />
+                    {c}
+                    <span className="fd-aisle-n">{items.length}</span>
+                  </h3>
+                  <ul className="fd-aisle-list">
+                    {items.map((v) => {
+                      const key = c + "::" + (v.n + "|" + (v.u || "")).toLowerCase();
+                      const on = !!checked[key];
+                      return (
+                        <li key={key} className={"fd-item" + (on ? " done" : "")} onClick={() => toggle(c, (v.n + "|" + (v.u || "")).toLowerCase())}>
+                          <span className={"fd-check" + (on ? " on" : "")} style={on ? { background: CAT_COLOR[c], borderColor: CAT_COLOR[c] } : null}>{on ? "✓" : ""}</span>
+                          <span className="fd-item-q">{v.hasQty && v.qty ? qtyText(v.qty) + " " + (v.u || "") : ""}</span>
+                          <span className="fd-item-n">{v.n}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+          <p className="fd-note">
+            Quantities are summed across every batch you selected. Where the original card gave a range (like 2–3 lb),
+            the larger amount is used so you don't come up short. Package sizes stay on the item for reference.
+          </p>
+        </>
+      )}
+
+      {copyOpen && (
+        <div className="fd-copy-overlay" onClick={() => setCopyOpen(false)}>
+          <div className="fd-copy-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="fd-copy-head">
+              <h3>Copy your grocery list</h3>
+              <button className="fd-copy-x" onClick={() => setCopyOpen(false)} aria-label="Close">✕</button>
+            </div>
+
+            <div className="fd-copy-opts">
+              <div className="fd-copy-optrow">
+                <span className="fd-copy-lab">Style</span>
+                <div className="fd-seg">
+                  <button className={fmt === "dash" ? "on" : ""} onClick={() => setFmt("dash")}>– bullets</button>
+                  <button className={fmt === "check" ? "on" : ""} onClick={() => setFmt("check")}>☐ checkboxes</button>
+                  <button className={fmt === "bare" ? "on" : ""} onClick={() => setFmt("bare")}>plain</button>
+                </div>
+              </div>
+              <div className="fd-copy-optrow">
+                <span className="fd-copy-lab">Order</span>
+                <div className="fd-seg">
+                  <button className={!flat ? "on" : ""} onClick={() => setFlat(false)}>By aisle</button>
+                  <button className={flat ? "on" : ""} onClick={() => setFlat(true)}>One A–Z list</button>
+                </div>
+                <label className="fd-copy-check">
+                  <input type="checkbox" checked={withQty} onChange={(e) => setWithQty(e.target.checked)} />
+                  Amounts
+                </label>
+              </div>
+            </div>
+
+            <textarea
+              ref={taRef}
+              className="fd-copy-text"
+              value={copyText}
+              readOnly
+              onFocus={(e) => e.target.select()}
+              rows={12}
+            />
+
+            <div className="fd-copy-foot">
+              <span className="fd-copy-hint">Tip: tap the box, then Select All &amp; copy — or use the button.</span>
+              <button className="fd-btn primary" onClick={copyNow}>{copied ? "✓ Copied!" : "Copy to clipboard"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= INSTRUCTIONS ================= */
+function InstructionsTab({ weeks, byId, activeWeek, setActiveWeek, goMeals }) {
+  if (weeks.length === 0) {
+    return (
+      <div className="fd-empty big">
+        <p className="fd-empty-head">No weeks planned yet.</p>
+        <p>Add meals to a week and the step-by-step cooking directions for each meal will gather here.</p>
+        <button className="fd-btn primary" onClick={goMeals}>Browse meals</button>
+      </div>
+    );
+  }
+  const week = weeks.find((w) => w.id === activeWeek) || weeks[0];
+  const items = week ? week.items.map((it) => ({ ...it, r: byId[it.rid] })).filter((x) => x.r) : [];
+  const cap = (s) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : s);
+
+  return (
+    <div className="fd-instr">
+      <div className="fd-instr-bar">
+        <div className="fd-shopweeks">
+          <span className="fd-shoplab">Show week:</span>
+          {weeks.map((w) => (
+            <button
+              key={w.id}
+              className={"fd-wtoggle" + (week && w.id === week.id ? " on" : "")}
+              onClick={() => setActiveWeek(w.id)}
+            >
+              {w.name} <span className="fd-wtoggle-n">{w.items.length}</span>
+            </button>
+          ))}
+        </div>
+        {items.length > 0 && (
+          <button className="fd-mini" onClick={() => window.print()}>Print week</button>
+        )}
+      </div>
+
+      <p className="fd-instr-note">
+        🧊 These are cook-from-frozen slow-cooker directions. Thaw each bag overnight in the fridge the night before.
+      </p>
+
+      {items.length === 0 ? (
+        <div className="fd-empty">This week has no meals yet. Add some from the Meals tab.</div>
+      ) : (
+        <div className="fd-instr-list">
+          {items.map(({ r, mult }, idx) => (
+            <article key={r.id + "-" + idx} className="fd-instr-card">
+              <div className="fd-card-tab">
+                {r.proteins.map((p) => (
+                  <span key={p} className="fd-ptag" style={{ background: PROTEIN_COLOR[p] }}>{PROTEIN_LABEL[p]}</span>
+                ))}
+                {r.cuisine && (
+                  <span className="fd-ctag" style={{ color: CUISINE_COLOR[r.cuisine] || "#7C7361", borderColor: (CUISINE_COLOR[r.cuisine] || "#CDC3AB") + "66" }}>{r.cuisine}</span>
+                )}
+              </div>
+              <h3 className="fd-instr-name">
+                {r.name}
+                {mult > 1 && <span className="fd-instr-mult">make ×{mult}</span>}
+              </h3>
+              <div className="fd-meta">
+                <span>🍽 serves {r.serves}{mult > 1 ? ` (×${mult})` : ""}</span>
+                <span>· ⏱ {r.cook || "—"}</span>
+                {r.supplies && <span>· 🍳 {cap(r.supplies)}</span>}
+              </div>
+              {r.steps && r.steps.length ? (
+                <ol className="fd-steps">
+                  {r.steps.map((s, i) => <li key={i}>{s}</li>)}
+                </ol>
+              ) : (
+                <p className="fd-instr-missing">No directions captured for this recipe — check the original plan.</p>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================= styles ================= */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+.fd-root{--ink:#23201A;--paper:#F7F3EA;--bg:#E7E0D0;--green:#33564B;--green-deep:#213A33;--honey:#DFA144;--brick:#B0532C;--line:#CDC3AB;--muted:#7C7361;
+ font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);background:var(--bg);min-height:100vh;}
+*{box-sizing:border-box}
+.fd-root button{font-family:inherit;cursor:pointer}
+.fd-top{position:sticky;top:0;z-index:20;background:var(--green-deep);color:#F2EDE2;padding:14px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;box-shadow:0 2px 0 rgba(0,0,0,.15)}
+.fd-brand{display:flex;align-items:center;gap:12px}
+.fd-pot{font-size:26px;color:var(--honey);line-height:1}
+.fd-word{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:22px;letter-spacing:.2px;line-height:1}
+.fd-sub{font-size:12px;color:#B9C6BE;margin-top:2px}
+.fd-tabs{display:flex;gap:6px;background:rgba(255,255,255,.07);padding:4px;border-radius:11px}
+.fd-tab{border:none;background:transparent;color:#CBD6CE;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px}
+.fd-tab.on{background:var(--paper);color:var(--green-deep)}
+.fd-badge{background:var(--honey);color:#3a2a10;font-size:11px;font-weight:600;border-radius:9px;padding:1px 7px}
+.fd-main{max-width:1140px;margin:0 auto;padding:22px 18px 60px}
+
+/* toolbar */
+.fd-toolbar{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:20px;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.fd-search{width:100%;border:1px solid var(--line);background:#fff;border-radius:9px;padding:11px 13px;font-size:15px;color:var(--ink);outline:none}
+.fd-search:focus{border-color:var(--green)}
+.fd-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.fd-chip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:500}
+.fd-chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.fd-toolrow{display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap}
+.fd-sortlab{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.fd-select{border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#fff;font-size:13px;color:var(--ink)}
+.fd-link{background:none;border:none;color:var(--green);font-weight:600;font-size:13px;text-decoration:underline;padding:0}
+.fd-count{margin-left:auto;font-size:13px;color:var(--muted)}
+
+/* grid + cards */
+.fd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:16px}
+.fd-card{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 16px 12px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:box-shadow .15s,transform .15s}
+.fd-card:hover{box-shadow:0 6px 18px rgba(33,58,51,.12);transform:translateY(-1px)}
+.fd-card.dim{opacity:.55}
+.fd-card-tab{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.fd-ptag{color:#fff;font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:5px}
+.fd-ctag{font-size:10.5px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:5px;background:#fff;border:1px solid}
+.fd-card-name{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:19px;line-height:1.2;margin:2px 0 8px}
+.fd-meta{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.fd-inglist{list-style:none;margin:0 0 10px;padding:10px 12px;background:#fff;border:1px dashed var(--line);border-radius:9px;font-size:12.5px;color:#4a4638;max-height:190px;overflow:auto}
+.fd-inglist li{padding:2px 0;border-bottom:1px solid #f0ead9}
+.fd-inglist li:last-child{border-bottom:none}
+.fd-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
+.fd-rate{display:flex;gap:5px}
+.fd-rbtn{width:32px;height:30px;border:1px solid var(--line);background:#fff;border-radius:7px;font-size:15px;display:flex;align-items:center;justify-content:center;line-height:1}
+.fd-mini{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:500}
+.fd-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+.fd-addwrap{position:relative}
+.fd-add{background:var(--honey);border:1px solid var(--honey);color:#3a2a10;font-weight:600;font-size:13px;border-radius:8px;padding:7px 12px}
+.fd-inweeks{font-weight:500;opacity:.75;font-size:11px}
+.fd-hide{background:none;border:none;color:var(--muted);font-size:12.5px;text-decoration:underline}
+.fd-menu{position:absolute;bottom:calc(100% + 6px);left:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.16);padding:6px;min-width:200px}
+.fd-menu-empty{font-size:12px;color:var(--muted);padding:6px 8px}
+.fd-menu-item{display:block;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:6px;font-size:13.5px;color:var(--ink)}
+.fd-menu-item:hover{background:#F3EEE2}
+.fd-menu-item.has{color:var(--green);font-weight:600}
+.fd-menu-new{display:flex;gap:5px;margin-top:5px;padding-top:6px;border-top:1px solid var(--line)}
+.fd-menu-input{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;outline:none}
+.fd-menu-add{background:var(--green);color:#fff;border:none;border-radius:6px;padding:0 10px;font-size:12.5px;font-weight:600}
+
+/* weeks */
+.fd-weeks{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:start}
+.fd-weeklist{display:flex;flex-direction:column;gap:6px;position:sticky;top:88px}
+.fd-weekitem{text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:11px 13px;display:flex;flex-direction:column;gap:2px}
+.fd-weekitem.on{border-color:var(--green);background:#fff;box-shadow:inset 3px 0 0 var(--green)}
+.fd-weekname{font-weight:600;font-size:14px}
+.fd-weekmeals{font-size:11.5px;color:var(--muted)}
+.fd-weekadd{border:1px dashed var(--line);background:none;color:var(--green);font-weight:600;border-radius:10px;padding:10px;font-size:13px}
+.fd-weekmain{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px}
+.fd-weekhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fd-weektitle{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:26px;margin:0;cursor:pointer}
+.fd-pencil{font-size:15px;color:var(--muted)}
+.fd-weekedit{font-family:'Fraunces',Georgia,serif;font-size:24px;border:1px solid var(--green);border-radius:8px;padding:2px 8px;outline:none}
+.fd-weekactions{display:flex;gap:8px;flex-wrap:wrap}
+.fd-btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:500}
+.fd-btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.fd-btn.primary:disabled{opacity:.4}
+.fd-btn.danger.ghost{color:var(--brick);border-color:#e3c3b4}
+.fd-weekstats{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.fd-statchip{border:1px solid;border-radius:16px;padding:3px 11px;font-size:12px;font-weight:600;background:#fff}
+.fd-weekmeal-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fd-weekmeal{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.fd-wm-name{font-weight:600;font-size:15px}
+.fd-love{color:var(--brick)}
+.fd-wm-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.fd-wm-right{display:flex;align-items:center;gap:12px}
+.fd-multi{display:flex;align-items:center;gap:3px}
+.fd-multi-lab{font-size:11px;color:var(--muted);margin-right:3px}
+.fd-multi-btn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600}
+.fd-multi-btn.on{background:var(--green);border-color:var(--green);color:#fff}
+.fd-remove{border:none;background:#f3ebe6;color:var(--brick);border-radius:6px;width:28px;height:28px;font-size:13px}
+
+/* grocery */
+.fd-grocery{}
+.fd-shopbar{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-bottom:18px}
+.fd-shopweeks{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fd-shoplab{font-size:13px;color:var(--muted);font-weight:600}
+.fd-wtoggle{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:18px;padding:6px 12px;font-size:13px}
+.fd-wtoggle.on{border-color:var(--green);background:#EEF3F0;color:var(--green-deep);font-weight:600}
+.fd-wtoggle.disabled{opacity:.45}
+.fd-wtoggle-n{background:#eee6d5;border-radius:9px;padding:0 6px;font-size:11px;color:var(--muted)}
+.fd-pantry-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+.fd-progress{display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.fd-progress-track{flex:1;min-width:160px;height:9px;background:#d9d0bd;border-radius:6px;overflow:hidden}
+.fd-progress-fill{height:100%;background:var(--green);transition:width .25s}
+.fd-progress-lab{font-size:13px;color:var(--muted);font-weight:600}
+.fd-gr-actions{display:flex;gap:7px}
+.fd-aisles{columns:2;column-gap:18px}
+.fd-aisle{break-inside:avoid;background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:14px 15px;margin-bottom:16px;display:inline-block;width:100%}
+.fd-aisle-head{display:flex;align-items:center;gap:9px;font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:600;margin:0 0 10px}
+.fd-aisle-dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.fd-aisle-n{margin-left:auto;font-family:'Inter';font-size:12px;color:var(--muted);font-weight:500;background:#fff;border:1px solid var(--line);border-radius:9px;padding:1px 8px}
+.fd-aisle-list{list-style:none;margin:0;padding:0}
+.fd-item{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid #efe8d7;cursor:pointer;font-size:14px}
+.fd-item:last-child{border-bottom:none}
+.fd-item.done{opacity:.5}
+.fd-item.done .fd-item-n{text-decoration:line-through}
+.fd-check{width:20px;height:20px;border:1.5px solid var(--line);border-radius:6px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;background:#fff}
+.fd-item-q{font-weight:600;color:var(--green-deep);min-width:52px;font-variant-numeric:tabular-nums}
+.fd-item-n{color:var(--ink)}
+.fd-note{font-size:12.5px;color:var(--muted);max-width:640px;margin:6px 2px;line-height:1.5}
+
+/* empties */
+.fd-empty{background:var(--paper);border:1px dashed var(--line);border-radius:13px;padding:22px;color:var(--muted);font-size:14.5px;text-align:center}
+.fd-empty.big{padding:48px 24px}
+.fd-empty-head{font-family:'Fraunces',Georgia,serif;font-size:22px;color:var(--ink);margin:0 0 8px}
+.fd-empty-actions{display:flex;gap:10px;justify-content:center;margin-top:18px}
+
+@media(max-width:820px){
+ .fd-weeks{grid-template-columns:1fr}
+ .fd-weeklist{position:static;flex-direction:row;overflow:auto;flex-wrap:nowrap}
+ .fd-weekitem{min-width:130px}
+ .fd-aisles{columns:1}
+}
+@media(max-width:520px){
+ .fd-top{flex-direction:column;align-items:stretch;gap:10px}
+ .fd-tabs{justify-content:space-between;flex-wrap:wrap}
+ .fd-grid{grid-template-columns:1fr}
+}
+@media print{
+ .fd-top,.fd-shopbar,.fd-progress,.fd-toolbar,.fd-note{display:none}
+ .fd-aisles{columns:2}
+ .fd-root{background:#fff}
+}
+
+/* copy panel */
+.fd-mini.strong{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+.fd-copy-overlay{position:fixed;inset:0;background:rgba(33,58,51,.42);display:flex;align-items:center;justify-content:center;padding:18px;z-index:100}
+.fd-copy-panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.28);width:100%;max-width:560px;max-height:90vh;overflow:auto;padding:18px}
+.fd-copy-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fd-copy-head h3{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:600;margin:0}
+.fd-copy-x{border:none;background:none;font-size:16px;color:var(--muted);padding:4px 8px;border-radius:7px}
+.fd-copy-x:hover{background:#0000000d}
+.fd-copy-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.fd-copy-optrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fd-copy-lab{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;min-width:44px}
+.fd-seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.fd-seg button{border:none;background:#fff;color:var(--muted);padding:7px 11px;font-size:12.5px;font-weight:500;border-right:1px solid var(--line)}
+.fd-seg button:last-child{border-right:none}
+.fd-seg button.on{background:var(--green);color:#fff}
+.fd-copy-check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+.fd-copy-text{width:100%;border:1px solid var(--line);border-radius:11px;background:#fff;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;color:var(--ink);resize:vertical;white-space:pre;overflow:auto}
+.fd-copy-text:focus{outline:none;border-color:var(--green)}
+.fd-copy-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
+.fd-copy-hint{font-size:12px;color:var(--muted);flex:1;min-width:180px}
+@media(max-width:520px){
+ .fd-copy-foot .fd-btn{width:100%}
+}
+
+/* instructions tab */
+.fd-instr-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.fd-instr-bar .fd-shopweeks{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1}
+.fd-instr-bar .fd-mini{margin-left:auto}
+.fd-instr-note{font-size:13px;color:var(--green-deep);background:#EAF0EA;border:1px solid #CFDDCF;border-radius:10px;padding:10px 13px;margin:0 0 18px}
+.fd-instr-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.fd-instr-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.fd-instr-name{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:20px;line-height:1.2;margin:4px 0 6px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.fd-instr-mult{font-family:'Inter';font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#3a2a10;background:var(--honey);border-radius:8px;padding:2px 8px}
+.fd-steps{margin:12px 0 0;padding:0 0 0 4px;list-style:none;counter-reset:step}
+.fd-steps li{position:relative;padding:0 0 12px 38px;font-size:14px;line-height:1.5;color:#3f3b30;counter-increment:step}
+.fd-steps li:before{content:counter(step);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-family:'Inter';font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.fd-steps li:not(:last-child):after{content:"";position:absolute;left:12.5px;top:26px;bottom:2px;width:1.5px;background:var(--line)}
+.fd-instr-missing{font-size:13px;color:var(--muted);font-style:italic;margin:10px 0 0}
+@media(max-width:520px){
+ .fd-instr-list{grid-template-columns:1fr}
+}
+@media print{
+ .fd-instr-bar,.fd-instr-note{display:none}
+ .fd-instr-list{display:block}
+ .fd-instr-card{break-inside:avoid;box-shadow:none;margin-bottom:14px}
+}
+`;
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+
+</script>
+</body>
+</html>
