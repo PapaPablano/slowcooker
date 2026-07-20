@@ -79,6 +79,16 @@ const OVERRIDES = {
   'Chicken Fajitas': { forceReserve: ['CHEDDAR CHEESE'] },
 };
 
+// prep[] corruption: PDF page-footer text ("MEAL PLAN #N" and the recipe-card
+// disclaimer sentence) leaks onto the trailing prep step during extraction.
+// Bounded heuristic: truncate from the footer marker onward. Escape hatch for
+// any meal this doesn't fully resolve: OVERRIDES[name].prepFix = [...] replaces
+// prep[] outright, same convention as the ingredient-level overrides above.
+const PREP_FOOTER = /[.\s]*MEAL PLAN #\d+.*$/i;
+function cleanPrepLines(prep) {
+  return prep.map((line) => (PREP_FOOTER.test(line) ? line.replace(PREP_FOOTER, '.').trim() : line));
+}
+
 function nameFromItem(item) {
   let s = cleanRaw(item)
     .replace(/^[\d½¼¾⅓⅔⅛][\d\/.\-]*\s*/, '')
@@ -140,8 +150,12 @@ for (const r of DATA) {
     else notes.push(`!! forceReserve no match: ${fr}`);
   }
 
+  const cleanedPrep = ov.prepFix || cleanPrepLines(p.prep);
+  const prepChanged = JSON.stringify(cleanedPrep) !== JSON.stringify(p.prep);
+
   if (mode === 'report') {
     if (notes.length) console.log('== ' + r.name + '\n   ' + notes.join('\n   '));
+    if (prepChanged) console.log('== ' + r.name + ' [prep cleanup]\n   before: ' + JSON.stringify(p.prep[p.prep.length - 1]) + '\n   after:  ' + JSON.stringify(cleanedPrep[cleanedPrep.length - 1]));
   } else {
     r.ing = r.ing.concat(newIngs);
     r.reserve = [...reserve].map(n => {
@@ -151,7 +165,7 @@ for (const r of DATA) {
     r.also = (r.also || []).filter(a =>
       ![...reserve].some(n => overlapScore(tokens(a), tokens(n)) >= 0.5) &&
       !newIngs.some(ni => overlapScore(tokens(a), tokens(ni.n)) >= 0.5));
-    r.prep = p.prep;
+    r.prep = cleanedPrep;
   }
 }
 
