@@ -114,6 +114,28 @@ function saveState(obj) {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+// Shared clipboard-copy-with-fallback logic (used by GroceryTab's "Copy list" and
+// the Share action). Falls back to document.execCommand("copy") against the given
+// textarea ref when the async Clipboard API is unavailable or throws (common in
+// in-app browsers opened from SMS/email).
+async function copyTextToClipboard(text, taRef) {
+  let ok = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch (e) { ok = false; }
+  if (!ok && taRef && taRef.current) {
+    try {
+      taRef.current.focus();
+      taRef.current.select();
+      ok = document.execCommand("copy");
+    } catch (e) { ok = false; }
+  }
+  return ok;
+}
+
 /* ---------- Prep Day helpers ---------- */
 // Expand a week's items[] into one entry per physical freezer bag (mult N -> N
 // sequential bag instances), each carrying its own ingredient/reserve/prep checklist.
@@ -158,6 +180,82 @@ function addMonthsClamped(d, months) {
   return nd;
 }
 
+/* ---------- Share Link helpers ---------- */
+const SHARE_LINK_VERSION = 1;
+const SHARE_MAX_NAME_LEN = 60;
+
+// UTF-8-safe base64url encode/decode. Plain btoa/atob only accept Latin-1 and
+// throw on emoji/accented characters that real week/recipe names can contain.
+function utf8ToBase64Url(str) {
+  const b64 = btoa(unescape(encodeURIComponent(str)));
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function base64UrlToUtf8(b64url) {
+  let b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+function encodeShareLink(week, byId) {
+  const items = week.items
+    .map((it) => {
+      const r = byId[it.rid];
+      if (!r) return null; // stale rid with no matching recipe -- keep the encoder honest
+      return { id: it.rid, name: r.name, mult: it.mult || 1 };
+    })
+    .filter(Boolean);
+  const payload = { v: SHARE_LINK_VERSION, name: week.name, items };
+  return "#share=" + utf8ToBase64Url(JSON.stringify(payload));
+}
+
+function decodeShareLink(hash) {
+  const m = /^#?share=(.+)$/.exec(hash || "");
+  if (!m) return null;
+  try {
+    const payload = JSON.parse(base64UrlToUtf8(m[1]));
+    if (!payload || payload.v !== SHARE_LINK_VERSION || typeof payload.name !== "string" || !Array.isArray(payload.items)) {
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeShareName(name) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return "Shared Week";
+  return trimmed.length > SHARE_MAX_NAME_LEN ? trimmed.slice(0, SHARE_MAX_NAME_LEN) : trimmed;
+}
+
+// Matches decoded {id, name, mult} entries against local DATA. A meal only counts as
+// matched when both id and name agree -- an id match with a name mismatch (e.g. that
+// id now points at a different recipe) is treated the same as no match at all.
+function matchShareItems(items, byId) {
+  const matched = [];
+  const skipped = [];
+  const seen = new Set();
+  (items || []).forEach((it) => {
+    const r = it && byId[it.id];
+    if (!r || r.name !== it.name) {
+      skipped.push((it && it.name) || "(unknown meal)");
+      return;
+    }
+    if (seen.has(it.id)) {
+      console.warn("Share import: duplicate recipe id in payload, keeping first occurrence", it.id);
+      return;
+    }
+    seen.add(it.id);
+    let mult = it.mult;
+    if (mult !== 1 && mult !== 2 && mult !== 3) {
+      console.warn("Share import: invalid multiplier, clamping to 1", it.mult);
+      mult = 1;
+    }
+    matched.push({ id: it.id, name: it.name, mult });
+  });
+  return { matched, skipped };
+}
+
 const RATING_META = {
   love: { label: "Love it", mark: "♥", color: "#B0532C" },
   ok: { label: "It's fine", mark: "◐", color: "#C6893B" },
@@ -177,6 +275,8 @@ function App() {
   const [prepped, setPrepped] = useState({});
   const [prepDayWeekId, setPrepDayWeekId] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [incomingShare, setIncomingShare] = useState(null);
+  const [justImportedId, setJustImportedId] = useState(null);
 
   // load once
   useEffect(() => {
@@ -196,6 +296,28 @@ function App() {
       setLoaded(true);
     })();
   }, []);
+
+  // Detect an incoming share link once on mount, decode+match it against the local
+  // DATA, and clear the hash immediately regardless of outcome so a later refresh
+  // can't re-trigger the same import. byId (below) doesn't depend on loaded state,
+  // so matching can happen synchronously here.
+  useEffect(() => {
+    if (!location.hash || !location.hash.startsWith("#share=")) return;
+    const hash = location.hash;
+    history.replaceState(null, "", location.pathname + location.search);
+    const payload = decodeShareLink(hash);
+    if (!payload) {
+      setIncomingShare({ status: "error" });
+      return;
+    }
+    const name = normalizeShareName(payload.name);
+    const { matched, skipped } = matchShareItems(payload.items, byId);
+    if (matched.length === 0) {
+      setIncomingShare({ status: "zero-match", name, skipped });
+    } else {
+      setIncomingShare({ status: skipped.length > 0 ? "partial" : "full", name, matched, skipped });
+    }
+  }, []); // deliberately empty: run exactly once on mount, never re-run when byId changes
 
   // save on change (after load)
   useEffect(() => {
@@ -260,6 +382,40 @@ function App() {
   }
 
   const weekCount = (rid) => weeks.reduce((n, w) => n + (w.items.some((it) => it.rid === rid) ? 1 : 0), 0);
+
+  /* ---------- share import helpers ---------- */
+  function confirmShareImport() {
+    if (!incomingShare || !incomingShare.matched) return;
+    const newWeek = {
+      id: uid(),
+      name: incomingShare.name,
+      items: incomingShare.matched.map((m) => ({ rid: m.id, mult: m.mult })),
+    };
+    setWeeks((p) => [...p, newWeek]);
+    setShopWeeks((p) => ({ ...p, [newWeek.id]: true }));
+    setIncomingShare(null);
+    setTab("weeks");
+    setActiveWeek(newWeek.id);
+    setJustImportedId(newWeek.id);
+    setTimeout(() => setJustImportedId(null), 2200);
+  }
+  function dismissShareImport() {
+    setIncomingShare(null);
+  }
+
+  if (incomingShare) {
+    return (
+      <div className="fd-root">
+        <style>{CSS}</style>
+        <ShareImportPreview
+          incomingShare={incomingShare}
+          loaded={loaded}
+          onConfirm={confirmShareImport}
+          onDismiss={dismissShareImport}
+        />
+      </div>
+    );
+  }
 
   const prepDayWeek = prepDayWeekId ? weeks.find((w) => w.id === prepDayWeekId) : null;
   if (prepDayWeek) {
@@ -339,6 +495,7 @@ function App() {
             prepProgress={prepProgress}
             prepped={prepped}
             startPrepDay={(weekId) => setPrepDayWeekId(weekId)}
+            justImportedId={justImportedId}
           />
         )}
         {tab === "prep" && (
@@ -644,10 +801,24 @@ function MealCard({ r, rating, isHidden, rate, toggleHide, weeks, addWeek, addTo
 }
 
 /* ================= WEEKS ================= */
-function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek, removeWeek, removeFromWeek, setMult, ratings, goShop, goMeals, prepProgress, prepped, startPrepDay }) {
+function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek, removeWeek, removeFromWeek, setMult, ratings, goShop, goMeals, prepProgress, prepped, startPrepDay, justImportedId }) {
   const week = weeks.find((w) => w.id === activeWeek) || weeks[0];
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLink, setShareLink] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareTaRef = useRef(null);
+
+  function openShare() {
+    setShareLink(location.origin + location.pathname + encodeShareLink(week, byId));
+    setShareCopied(false);
+    setShareOpen(true);
+  }
+  async function shareCopyNow() {
+    const ok = await copyTextToClipboard(shareLink, shareTaRef);
+    if (ok) { setShareCopied(true); setTimeout(() => setShareCopied(false), 1800); }
+  }
 
   if (weeks.length === 0) {
     return (
@@ -667,12 +838,13 @@ function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek,
   totalCook.forEach((r) => r.proteins.forEach((p) => (proteinMix[p] = (proteinMix[p] || 0) + 1)));
 
   return (
+    <>
     <div className="fd-weeks">
       <aside className="fd-weeklist">
         {weeks.map((w) => (
           <button
             key={w.id}
-            className={"fd-weekitem" + (w.id === (week && week.id) ? " on" : "")}
+            className={"fd-weekitem" + (w.id === (week && week.id) ? " on" : "") + (w.id === justImportedId ? " just-imported" : "")}
             onClick={() => setActiveWeek(w.id)}
           >
             <span className="fd-weekname">{w.name}</span>
@@ -714,6 +886,9 @@ function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek,
               disabled={week.items.length === 0}
             >
               {isWeekPrepStarted(week.id, prepDayBags(week, byId), prepProgress) ? "Resume Prep Day" : "Start Prep Day"}
+            </button>
+            <button className="fd-btn" onClick={openShare} disabled={week.items.length === 0}>
+              Share →
             </button>
             <button className="fd-btn danger ghost" onClick={() => removeWeek(week.id)}>Delete</button>
           </div>
@@ -771,6 +946,36 @@ function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek,
         )}
       </section>
     </div>
+
+    {shareOpen && (
+      <div className="fd-copy-overlay" onClick={() => setShareOpen(false)}>
+        <div className="fd-copy-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="fd-copy-head">
+            <h3>Share "{week.name}"</h3>
+            <button className="fd-copy-x" onClick={() => setShareOpen(false)} aria-label="Close">✕</button>
+          </div>
+
+          <p className="fd-share-hint">
+            Send this link to whoever should get a copy of this week. Opening it shows a preview before anything is added to their plan.
+          </p>
+
+          <textarea
+            ref={shareTaRef}
+            className="fd-copy-text"
+            value={shareLink}
+            readOnly
+            onFocus={(e) => e.target.select()}
+            rows={4}
+          />
+
+          <div className="fd-copy-foot">
+            <span className="fd-copy-hint">Tip: tap the box, then Select All &amp; copy — or use the button.</span>
+            <button className="fd-btn primary" onClick={shareCopyNow}>{shareCopied ? "✓ Copied!" : "Copy link"}</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -919,6 +1124,82 @@ function PrepDayMode({ week, byId, prepProgress, togglePrepItem, onExit }) {
   );
 }
 
+/* ================= SHARE IMPORT ================= */
+function ShareImportPreview({ incomingShare, loaded, onConfirm, onDismiss }) {
+  const [confirming, setConfirming] = useState(false);
+  const { status, name, matched, skipped } = incomingShare;
+
+  function handleConfirm() {
+    if (confirming || !loaded) return;
+    setConfirming(true); // synchronous re-entrancy guard, independent of the loaded gate
+    onConfirm();
+  }
+
+  if (status === "error") {
+    return (
+      <div className="fd-prepday">
+        <div className="fd-prepday-bar">
+          <button className="fd-btn" onClick={onDismiss}>✕ Dismiss</button>
+        </div>
+        <div className="fd-prepday-landing">
+          <h2 className="fd-prepday-title">This link couldn't be read</h2>
+          <p className="fd-prepday-sub">It may have been cut off or corrupted along the way — ask them to resend it.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "zero-match") {
+    return (
+      <div className="fd-prepday">
+        <div className="fd-prepday-bar">
+          <button className="fd-btn" onClick={onDismiss}>✕ Dismiss</button>
+        </div>
+        <div className="fd-prepday-landing">
+          <h2 className="fd-prepday-title">None of these meals could be matched</h2>
+          <p className="fd-prepday-sub">The recipe list may have changed since this link was made.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fd-prepday">
+      <div className="fd-prepday-bar">
+        <button className="fd-btn" onClick={onDismiss}>✕ Dismiss</button>
+      </div>
+      <div className="fd-prepday-landing">
+        <h2 className="fd-prepday-title">{name}</h2>
+        <p className="fd-prepday-sub">Ready to add {matched.length} meal{matched.length === 1 ? "" : "s"} to your plan.</p>
+      </div>
+
+      <div className="fd-prepday-bag">
+        <ul className="fd-share-meallist">
+          {matched.map((m) => (
+            <li key={m.id}>
+              <span>{m.name}</span>
+              <span className="fd-share-mult">×{m.mult}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {skipped.length > 0 && (
+        <div className="fd-share-skipped">
+          <p className="fd-share-skipped-head">{skipped.length} meal{skipped.length === 1 ? "" : "s"} couldn't be matched:</p>
+          <ul>
+            {skipped.map((n, i) => <li key={i}>{n}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <button className="fd-btn primary big" onClick={handleConfirm} disabled={confirming || !loaded}>
+        Add this week
+      </button>
+    </div>
+  );
+}
+
 /* ================= GROCERY ================= */
 function GroceryTab({ weeks, byId, shopWeeks, setShopWeeks, checked, setChecked, hidePantry, setHidePantry, goMeals }) {
   const chosen = weeks.filter((w) => shopWeeks[w.id] && w.items.length > 0);
@@ -1001,21 +1282,7 @@ function GroceryTab({ weeks, byId, shopWeeks, setShopWeeks, checked, setChecked,
   }, [copyOpen, fmt, flat, withQty]);
 
   async function copyNow() {
-    const text = buildText();
-    let ok = false;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        ok = true;
-      }
-    } catch (e) { ok = false; }
-    if (!ok && taRef.current) {
-      try {
-        taRef.current.focus();
-        taRef.current.select();
-        ok = document.execCommand("copy");
-      } catch (e) { ok = false; }
-    }
+    const ok = await copyTextToClipboard(buildText(), taRef);
     if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1800); }
   }
 
@@ -1308,6 +1575,8 @@ const CSS = `
 .fd-weeklist{display:flex;flex-direction:column;gap:6px;position:sticky;top:88px}
 .fd-weekitem{text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:11px 13px;display:flex;flex-direction:column;gap:2px}
 .fd-weekitem.on{border-color:var(--green);background:#fff;box-shadow:inset 3px 0 0 var(--green)}
+.fd-weekitem.just-imported{animation:fd-import-pulse 2.2s ease-out}
+@keyframes fd-import-pulse{0%{background:#EEF3F0;box-shadow:0 0 0 3px var(--green)}100%{background:#fff;box-shadow:inset 3px 0 0 var(--green)}}
 .fd-weekname{font-weight:600;font-size:14px}
 .fd-weekmeals{font-size:11.5px;color:var(--muted)}
 .fd-weekadd{border:1px dashed var(--line);background:none;color:var(--green);font-weight:600;border-radius:10px;padding:10px;font-size:13px}
@@ -1412,6 +1681,7 @@ const CSS = `
 .fd-copy-text:focus{outline:none;border-color:var(--green)}
 .fd-copy-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
 .fd-copy-hint{font-size:12px;color:var(--muted);flex:1;min-width:180px}
+.fd-share-hint{font-size:13px;color:var(--muted);margin:0 0 12px}
 @media(max-width:520px){
  .fd-copy-foot .fd-btn{width:100%}
 }
@@ -1444,6 +1714,14 @@ const CSS = `
 .fd-prepday-nav{display:flex;gap:12px;justify-content:space-between}
 .fd-prepday-nav .fd-btn{flex:1}
 .fd-label-print{display:none}
+/* share import */
+.fd-share-meallist{list-style:none;margin:0;padding:0}
+.fd-share-meallist li{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #efe8d7;font-size:15px;color:var(--ink)}
+.fd-share-meallist li:last-child{border-bottom:none}
+.fd-share-mult{font-family:'Inter';font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#3a2a10;background:var(--honey);border-radius:8px;padding:2px 8px}
+.fd-share-skipped{background:#FBF3E4;border:1px solid #E9D9B4;border-radius:12px;padding:14px 16px;margin-top:14px;font-size:13.5px;color:#5a4a2a}
+.fd-share-skipped-head{font-weight:600;margin:0 0 6px}
+.fd-share-skipped ul{margin:0;padding-left:18px}
 @media(max-width:520px){
  .fd-prepday{padding:14px 12px 32px}
  .fd-prepday-nav{flex-direction:column-reverse}
