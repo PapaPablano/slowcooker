@@ -293,7 +293,7 @@ function App() {
           {[
             ["meals", "Meals"],
             ["weeks", "My Weeks"],
-            ["cook", "Instructions"],
+            ["prep", "Prep"],
             ["grocery", "Grocery List"],
           ].map(([k, label]) => (
             <button
@@ -341,12 +341,15 @@ function App() {
             startPrepDay={(weekId) => setPrepDayWeekId(weekId)}
           />
         )}
-        {tab === "cook" && (
-          <InstructionsTab
+        {tab === "prep" && (
+          <PrepTab
             weeks={weeks}
             byId={byId}
             activeWeek={activeWeek}
             setActiveWeek={setActiveWeek}
+            prepProgress={prepProgress}
+            prepped={prepped}
+            startPrepDay={(weekId) => setPrepDayWeekId(weekId)}
             goMeals={() => setTab("meals")}
           />
         )}
@@ -707,7 +710,7 @@ function WeeksTab({ weeks, byId, activeWeek, setActiveWeek, addWeek, renameWeek,
             </button>
             <button
               className="fd-btn primary"
-              onClick={() => startPrepDay(week.id)}
+              onClick={() => { setActiveWeek(week.id); startPrepDay(week.id); }}
               disabled={week.items.length === 0}
             >
               {isWeekPrepStarted(week.id, prepDayBags(week, byId), prepProgress) ? "Resume Prep Day" : "Start Prep Day"}
@@ -1172,78 +1175,56 @@ function GroceryTab({ weeks, byId, shopWeeks, setShopWeeks, checked, setChecked,
   );
 }
 
-/* ================= INSTRUCTIONS ================= */
-function InstructionsTab({ weeks, byId, activeWeek, setActiveWeek, goMeals }) {
+/* ================= PREP TAB ================= */
+function PrepTab({ weeks, byId, activeWeek, setActiveWeek, prepProgress, prepped, startPrepDay, goMeals }) {
   if (weeks.length === 0) {
     return (
       <div className="fd-empty big">
         <p className="fd-empty-head">No weeks planned yet.</p>
-        <p>Add meals to a week and the step-by-step cooking directions for each meal will gather here.</p>
+        <p>Build a week and add meals to it, then come back here to assemble freezer bags on prep day.</p>
         <button className="fd-btn primary" onClick={goMeals}>Browse meals</button>
       </div>
     );
   }
   const week = weeks.find((w) => w.id === activeWeek) || weeks[0];
-  const items = week ? week.items.map((it) => ({ ...it, r: byId[it.rid] })).filter((x) => x.r) : [];
-  const cap = (s) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : s);
 
   return (
     <div className="fd-instr">
-      <div className="fd-instr-bar">
-        <div className="fd-shopweeks">
-          <span className="fd-shoplab">Show week:</span>
-          {weeks.map((w) => (
-            <button
-              key={w.id}
-              className={"fd-wtoggle" + (week && w.id === week.id ? " on" : "")}
-              onClick={() => setActiveWeek(w.id)}
-            >
-              {w.name} <span className="fd-wtoggle-n">{w.items.length}</span>
-            </button>
-          ))}
+      {weeks.length > 1 && (
+        <div className="fd-shopbar">
+          <div className="fd-shopweeks">
+            <span className="fd-shoplab">Show week:</span>
+            {weeks.map((w) => (
+              <button
+                key={w.id}
+                className={"fd-wtoggle" + (week && w.id === week.id ? " on" : "")}
+                onClick={() => setActiveWeek(w.id)}
+              >
+                {w.name} <span className="fd-wtoggle-n">{w.items.length}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        {items.length > 0 && (
-          <button className="fd-mini" onClick={() => window.print()}>Print week</button>
+      )}
+
+      <h2 className="fd-weektitle" style={{ cursor: "default" }}>
+        {week.name}
+        {prepped[week.id] && (
+          <span className="fd-badge fd-prepped-badge">
+            ✓ Prepped {new Date(prepped[week.id]).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
         )}
-      </div>
+      </h2>
 
-      <p className="fd-instr-note">
-        🧊 These are cook-from-frozen slow-cooker directions. Thaw each bag overnight in the fridge the night before.
-      </p>
-
-      {items.length === 0 ? (
+      <button
+        className="fd-btn primary"
+        onClick={() => { setActiveWeek(week.id); startPrepDay(week.id); }}
+        disabled={week.items.length === 0}
+      >
+        {isWeekPrepStarted(week.id, prepDayBags(week, byId), prepProgress) ? "Resume Prep Day" : "Start Prep Day"}
+      </button>
+      {week.items.length === 0 && (
         <div className="fd-empty">This week has no meals yet. Add some from the Meals tab.</div>
-      ) : (
-        <div className="fd-instr-list">
-          {items.map(({ r, mult }, idx) => (
-            <article key={r.id + "-" + idx} className="fd-instr-card">
-              <div className="fd-card-tab">
-                {r.proteins.map((p) => (
-                  <span key={p} className="fd-ptag" style={{ background: PROTEIN_COLOR[p] }}>{PROTEIN_LABEL[p]}</span>
-                ))}
-                {r.cuisine && (
-                  <span className="fd-ctag" style={{ color: CUISINE_COLOR[r.cuisine] || "#7C7361", borderColor: (CUISINE_COLOR[r.cuisine] || "#CDC3AB") + "66" }}>{r.cuisine}</span>
-                )}
-              </div>
-              <h3 className="fd-instr-name">
-                {r.name}
-                {mult > 1 && <span className="fd-instr-mult">make ×{mult}</span>}
-              </h3>
-              <div className="fd-meta">
-                <span>🍽 serves {r.serves}{mult > 1 ? ` (×${mult})` : ""}</span>
-                <span>· ⏱ {r.cook || "—"}</span>
-                {r.supplies && <span>· 🍳 {cap(r.supplies)}</span>}
-              </div>
-              {r.steps && r.steps.length ? (
-                <ol className="fd-steps">
-                  {r.steps.map((s, i) => <li key={i}>{s}</li>)}
-                </ol>
-              ) : (
-                <p className="fd-instr-missing">No directions captured for this recipe — check the original plan.</p>
-              )}
-            </article>
-          ))}
-        </div>
       )}
     </div>
   );
@@ -1435,28 +1416,12 @@ const CSS = `
  .fd-copy-foot .fd-btn{width:100%}
 }
 
-/* instructions tab */
-.fd-instr-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
-.fd-instr-bar .fd-shopweeks{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1}
-.fd-instr-bar .fd-mini{margin-left:auto}
-.fd-instr-note{font-size:13px;color:var(--green-deep);background:#EAF0EA;border:1px solid #CFDDCF;border-radius:10px;padding:10px 13px;margin:0 0 18px}
-.fd-instr-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.fd-instr-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.fd-instr-name{font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:20px;line-height:1.2;margin:4px 0 6px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+/* shared with prep day mode's batch badge */
 .fd-instr-mult{font-family:'Inter';font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#3a2a10;background:var(--honey);border-radius:8px;padding:2px 8px}
 .fd-steps{margin:12px 0 0;padding:0 0 0 4px;list-style:none;counter-reset:step}
 .fd-steps li{position:relative;padding:0 0 12px 38px;font-size:14px;line-height:1.5;color:#3f3b30;counter-increment:step}
 .fd-steps li:before{content:counter(step);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-family:'Inter';font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
 .fd-steps li:not(:last-child):after{content:"";position:absolute;left:12.5px;top:26px;bottom:2px;width:1.5px;background:var(--line)}
-.fd-instr-missing{font-size:13px;color:var(--muted);font-style:italic;margin:10px 0 0}
-@media(max-width:520px){
- .fd-instr-list{grid-template-columns:1fr}
-}
-@media print{
- .fd-instr-bar,.fd-instr-note{display:none}
- .fd-instr-list{display:block}
- .fd-instr-card{break-inside:avoid;box-shadow:none;margin-bottom:14px}
-}
 
 /* prep day mode */
 .fd-prepday{max-width:640px;margin:0 auto;padding:18px 16px 40px;min-height:100vh}
